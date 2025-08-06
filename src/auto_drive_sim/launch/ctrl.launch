@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="auto_drive_sim" type="ctrl_motor.py" name="ctrl_motor_node" output="screen" />
+  <node pkg="auto_drive_sim" type="ctrl_servo.py" name="ctrl_servo_node" output="screen" />
+</launch>

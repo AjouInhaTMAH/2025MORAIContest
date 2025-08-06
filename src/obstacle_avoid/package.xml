@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>obstacle_avoid</name>
+  <version>0.0.0</version>
+  <description>The obstacle_avoid package</description>
+
+  <maintainer email="root@todo.todo">root</maintainer>
+  <license>BSD</license>
+
+  <!-- 빌드 도구 -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- 빌드 시 필요한 패키지 -->
+  <build_depend>message_generation</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <!-- 런타임 시 필요한 패키지 -->
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <!-- 빌드 후 다른 패키지가 이걸 의존할 경우 필요 -->
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+
+  <export>
+  </export>
+</package>
