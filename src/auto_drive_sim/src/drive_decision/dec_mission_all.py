@@ -57,6 +57,7 @@ class DecMissionAll:
         self.motor_pub = rospy.Publisher('/commands/motor/speed', Float64, queue_size=1)
         self.servo_pub = rospy.Publisher('/commands/servo/position', Float64, queue_size=1)
         self.lane_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         rospy.Subscriber("/lane_mode", Int32, self.CB_car_nav)
         rospy.Subscriber('/dr_info', String, self.callback)
         self.x = 0
@@ -80,6 +81,9 @@ class DecMissionAll:
         self.path1_01flag = False
         self.path1_02flag = False
         self.go_goal_stop_flag = False
+        self.go_goal_stop_end_flag = False
+        self.sequence_active = False
+        self.sequence_start_time = 0
         
     def init_lidar_info(self):
         self.left_obstacle = False
@@ -99,7 +103,7 @@ class DecMissionAll:
         self.total_steer = self.max_steer - self.min_steer
         self.steer_per_pixel = 2 / 640  # 수정 가능
         self.max_speed = 1200
-        self.min_speed = 400
+        self.min_speed = 700
         self.stop_flag = False
         self.stop_flag_num = 0
         self.center_index = 0
@@ -145,7 +149,7 @@ class DecMissionAll:
 
     def calculate_curvature(self, x_vals, y_vals):
         # 최소 데이터 개수 확인 (2개 미만이면 근사 자체가 불가능함)
-        if len(x_vals) < 5:
+        if len(x_vals) < 4:
             return 1e4  # 데이터 부족 시 직선으로 간주
 
         try:
@@ -289,60 +293,38 @@ class DecMissionAll:
             if cross_threshold < cross_diff:
                 self.stop_flag_num += 1
             return self.stop_flag_num, [], []
-        elif left_yellow_lane and right_lane:
-            weight_left = len(left_yellow_lane)
-            weight_right = len(right_lane)
-            #print(f"weight_left : {weight_left} / weight_right : {weight_right}")
-            #total_weight = weight_left + weight_right
-            #self.center_index = int((left_index * weight_left + right_index * weight_right) / total_weight)
-            #self.center_index = int((left_index + right_index)//2)
-            if weight_left > weight_right:
-                left_index = left_yellow_lane[-1][0]
-                self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-                return "first_lane", left_white_lane, right_lane
-
-            else:
-                right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
-                self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-                return "second_lane", left_white_lane, right_lane
         elif left_white_lane and right_lane:
             left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
             right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
             weight_left = len(left_white_lane)
             weight_right = len(right_lane)
-            #print(f"weight_left : {weight_left} / weight_right : {weight_right}")
-            #total_weight = weight_left + weight_right
-            #self.center_index = int((left_index * weight_left + right_index * weight_right) / total_weight)
-            #self.center_index = int((left_index + right_index)//2)
+
             if weight_left > weight_right:
                 left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
                 self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
                 return "first_lane", left_white_lane, []
-            
+
             else:
                 right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
                 self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
                 return "second_lane", [], right_lane
 
-        elif left_white_lane and not right_lane:
-            left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
-            self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-            return "left_guided", left_white_lane, []
-
         elif left_yellow_lane and right_lane:
-            left_index = (left_yellow_lane[0][0] + left_yellow_lane[-1][0]) // 2
-            self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-            return "first_lane", left_yellow_lane, []
+            weight_left = len(left_yellow_lane)
+            weight_right = len(right_lane)
 
-        elif right_lane and not left_white_lane:
-            right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
-            self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-            return "right_guided", [], right_lane
+            if weight_left > weight_right:
+                left_index = left_yellow_lane[-1][0]
+                self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "first_lane", left_yellow_lane, [] 
 
+            else:
+                right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
+                self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "second_lane", [], right_lane
         else:
             self.center_index = self.center_pixel  # 정중앙
             return "go_straight", [], []
-            
            
         
     def ctrl_move(self, mode, left_lane=None, right_lane=None):
@@ -394,11 +376,11 @@ class DecMissionAll:
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
     def ctrl_move_right(self, mode, left_lane=None, right_lane=None):
         pixel_error = self.center_index - self.center_pixel
-        steer_error = pixel_error*self.steer_per_pixel
+        steer_error = pixel_error * self.steer_per_pixel
         print(f"left_lane:{left_lane} / right_lane:{right_lane}")
         left_detected = bool(left_lane)
         right_detected = bool(right_lane)
-        
+
         x_vals, y_vals = [], []
         if left_lane:
             for pt in left_lane:
@@ -410,41 +392,52 @@ class DecMissionAll:
                 y_vals.append(pt[1])
 
         curvature = self.calculate_curvature(x_vals, y_vals)
-        # if curvature < 2000:
-        #     steer = 0.88
-        #     base_speed = self.get_base_speed(2000)
-        #     pid_output = 0
-        # else:
-        steer_gain = self.get_steer_gain_right(curvature)
-        base_speed = self.get_base_speed(curvature)
+        steer_gain = self.get_steer_gain(curvature)
         pid_output = self.pid.compute(steer_error)
-        steer = steer_gain*pid_output + 0.5
 
-        steer = max(self.min_steer, min(self.max_steer, steer))  # 스티어링 제한
-        
-        # # 4. 예측 조향 업데이트 (항상 수행)
-        # predicted_steer = self.predictor.update(
-        #     steer=steer,
-        #     left_detected=left_detected,
-        #     right_detected=right_detected
-        # )
+        now = time()
 
-        # # 5. 한쪽이라도 인식 안 됐을 때 → 예측 조향값으로 대체
-        # if not left_detected or not right_detected:
-        #     steer = predicted_steer
-        #     #rospy.loginfo(f"[Predictive] Using predicted steer: {steer:.3f}")    
+        time_points = [0, 1, 2, 3]  # 0초부터 시작되도록 0 추가
+        steer_values = [0.7, 0.8, 0.9, 0.8]  # time_points 길이 맞춤
 
-        deviation = abs(steer-0.5)
+        if not hasattr(self, "sequence_active"):
+            self.sequence_active = False
+            self.sequence_start_time = 0
+
+        if curvature <= 1000 and not self.sequence_active:
+            self.sequence_active = True
+            self.sequence_start_time = now
+            rospy.loginfo("[Sequence] Started fixed steer sequence")
+
+        if self.sequence_active:
+            elapsed = now - self.sequence_start_time
+            if elapsed > time_points[-1]:
+                self.sequence_active = False
+                rospy.loginfo("[Sequence] Finished fixed steer sequence")
+                steer = steer_gain * pid_output + 0.5
+                steer = max(self.min_steer, min(self.max_steer, steer))
+            else:
+                # time_points에 맞춰 가장 최근의 steer 값을 선택
+                steer = steer_values[0]
+                for i in range(1, len(time_points)):
+                    if elapsed >= time_points[i]:
+                        steer = steer_values[i]
+
+        else:
+            steer = steer_gain * pid_output + 0.5
+            steer = max(self.min_steer, min(self.max_steer, steer))
+
+        base_speed = self.get_base_speed(curvature)
+        deviation = abs(steer - 0.5)
         speed = max(self.min_speed, int(base_speed - deviation * (base_speed - self.min_speed)))
-        
-        #self.last_steer = steer
 
         self.publish(speed, steer)
-        
+
         rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
         rospy.loginfo(f"[steer_gain] value: {steer_gain:.2f}")
+        rospy.loginfo(f"[stop_flag_num] value: {self.stop_flag_num:.2f}")
 
     def action_mission2_3(self):
         mode, left_lane, right_lane = self.ctrl_decision()
@@ -463,8 +456,8 @@ class DecMissionAll:
         B = 0.0022
         return max(1.0, A * np.exp(-B * curvature))
     def get_steer_gain_right(self, curvature):
-        A = 50.0  # 최대 gain
-        B = 0.012
+        A = 20.0  # 최대 gain
+        B = 0.0025
         return max(1.0, A * np.exp(-B * curvature))
     def get_base_speed(self, curvature):
         min_speed = self.min_speed
@@ -490,7 +483,91 @@ class DecMissionAll:
         self.motor_pub.publish(0)
         self.servo_pub.publish(0)
         sleep(time)
+    def normalize_angle(self, angle):
+        # [-pi, pi] 범위로 정규화
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        while angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
+    def angle_to_target(self, x, y, w, tx, ty):
+        # 현재 위치에서 목표 지점까지의 각도 차이 계산
+        print(f"angle_to_target {x}")
+        print(f"angle_to_target {y}")
+        print(f"angle_to_target {w}")
+        print(f"angle_to_target {tx}")
+        print(f"angle_to_target {ty}")
+        dx = - tx + x
+        dy = - ty + y
+        dist = math.hypot(dx, dy)  # 거리 계산
+        # target_angle = math.atan2(dy, dx)
+        target_angle = math.atan2(dx, dy)
+        target_angle_deg = math.degrees(target_angle)  # 도(degree)
         
+        # print(f"dx,dy {dx} {dy}")
+        # print(f"target_angle {target_angle_deg}")
+        # print(f"w {w}")
+        w_rotated = w - 90  # 90도 회전
+        # 0~360 범위로 정리하고 싶다면:
+        w_rotated = (w_rotated + 360) % 360
+        # heading 각도가 w (deg)로 주어졌다면 → rad로 변환
+        heading_rad = math.radians(w)  # w는 degree (0~360 기준)
+        heading_rad = math.radians(w_rotated)  # w는 degree (0~360 기준)
+        # heading 방향 벡터 (단위 벡터)
+        heading_vector = (math.cos(heading_rad), math.sin(heading_rad))
+
+        # 타겟 방향 벡터
+        # target_vector = (dx, dy)
+        target_norm = math.hypot(dx, dy)
+        target_vector = (dx / target_norm, dy / target_norm)
+        # heading_vector, target_vector는 단위 벡터임
+        # 내적, 외적
+        dot = heading_vector[0] * target_vector[0] + heading_vector[1] * target_vector[1]
+        cross = heading_vector[0] * target_vector[1] - heading_vector[1] * target_vector[0]
+
+        # 부호 있는 각도 (라디안 → 도)
+        angle_rad = math.atan2(cross, dot)
+        angle_deg = math.degrees(angle_rad)
+
+        print(f"벡터 간 부호 있는 회전 각도: {angle_deg:.2f}°")
+        return angle_deg
+    def compute_drive_command(self,x, y, w, tx, ty):
+        # 거리 계산
+        distance = math.hypot(tx - x, ty - y)
+
+        # 도달 조건 (선택적으로 함수 외부에서 사용 가능)
+        reached = distance < 0.5
+
+        # 조향 계산
+        angle_diff_deg = self.angle_to_target(x, y, w, tx, ty)
+        print(f"angle_diff_deg {angle_diff_deg}")
+        # [-90, 90]로 제한
+        angle_diff_deg = max(min(angle_diff_deg, 90), -90)
+
+        # -90~90 → -19.5~19.5로 선형 맵핑
+        steer = (angle_diff_deg / 90) * 19.5
+        
+        speed = 400  # 고정 속도
+        return speed, -steer, reached
+    
+    def drvie_amcl(self):
+        # 현재 위치
+        x = self.x
+        y = self.y
+        w = self.yaw
+        tx, ty = 4.1521, -3.517
+        print(f"self.lane_mode {self.lane_mode}")
+        speed, steer, reached = self.compute_drive_command(x, y, w, tx, ty)
+        # print(f"reached {reached}")
+        if reached :
+            print(f"reached {reached}")
+            self.go_goal_stop_end_flag = True
+        steer = ((steer / 19.5 + 1)) /2
+        print(f"speed, steer {speed} {steer}")
+        self.motor_pub.publish(speed)
+        self.servo_pub.publish(steer)
+
+    
     def mission4_fast_hardcoding(self):
         if self.mi4_out_flag:
             print(f"5")
@@ -531,7 +608,7 @@ class DecMissionAll:
         left_lane = yellow_left
         right_lane = white_right
         self.right_lane_delta = 134
-        self.left_lane_delta = 163
+        self.left_lane_delta = 163 + 20
         if white_right:
             self.center_index = right_lane[0][0] - self.right_lane_delta
         elif left_lane:
@@ -547,7 +624,7 @@ class DecMissionAll:
         # print(f"[INFO] steer: {steer:.2f} deg")
         pixel_error = self.center_index - self.center_pixel  # +면 우측, -면 좌측
         print(f"[INFO] pixel_error: {pixel_error:.2f} deg")
-        steer = pixel_error * self.steer_per_pixel * self.total_steer * 3 + 0.5
+        steer = pixel_error * self.steer_per_pixel * self.total_steer * 2 + 0.5
         print(f"[INFO] pixel_error: {steer:.2f} deg")
         # steer = self.pid.compute(pixel_error)
         # 클리핑 (조향각 범위 제한)
@@ -559,18 +636,25 @@ class DecMissionAll:
         # 5. 결과 저장 혹은 publish
         self.publish(speed,steer)
         print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")
+        
     def action_go_goal_01(self):
         self.chose_center()
         self.ctrl_moveByLine()
-        # 4.2876
-        # -3.6758
+        # mode, left_lane, right_lane = self.ctrl_decision_right()
+        # self.ctrl_move_right(mode, left_lane, right_lane)
+
     def action_go_goal_02(self):
-        if self.go_goal_stop_flag:
-            print(f"stop")
-            self.publish(0,0)
+        if self.go_goal_stop_end_flag:
+            print(f"4!")
+            self.chose_center()
+            self.ctrl_moveByLine()
+        elif self.go_goal_stop_flag:
+            self.drvie_amcl()
         elif self.stop_line != [] and self.stop_line[MAX_Y] > 320:
+            print(f"stop!")
             self.go_goal_stop_flag = True
         else:
+            print(f"1!")
             self.chose_center()
             self.ctrl_moveByLine()
 

@@ -66,22 +66,18 @@ class PerCamera:
         self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
     
     def BEV_img_warp(self,filtered_img,y,x):
-        # src_point1 = [0,420]
-        # src_point2 = [275,260]
-        # src_point3 = [x - 275,260]
-        # src_point4 = [x,420]
+        delta = 0
+        src_point1 = [-delta,400]
+        src_point2 = [180,300] # 180
+        src_point3 = [x-180,300] # 180
+        src_point4 = [x+delta,400]
         
         delta = 25
         src_point1 = [-delta,400]
         src_point2 = [180,300] # 180
         src_point3 = [x-180,300] # 180
         src_point4 = [x+delta,400]
-        
-        # delta = 25
-        # src_point1 = [-delta,400]
-        # src_point2 = [265,260] # 180
-        # src_point3 = [x-265,260] # 180
-        # src_point4 = [x+delta,400]
+  
         
         src_points = np.float32([src_point1,src_point2,src_point3,src_point4])
         
@@ -194,6 +190,8 @@ class PerCamera:
         return x_current, y_current, flag, prev_margin, x_prev
     
     def sliding_window_adaptive(self,binary_img, nwindows=15, margin=80, minpix=100):
+        # margin=80
+        margin= 75
         binary_img_color = cv2.cvtColor(binary_img, cv2.COLOR_GRAY2BGR)
         histogram = np.sum(binary_img[binary_img.shape[0]//2:, :], axis=0)
         self.left_blocked_flag = 0
@@ -224,7 +222,7 @@ class PerCamera:
         righty_current = binary_img.shape[0] - self.window_height // 2
         for window in range(nwindows):
             # 윈도우 범위 (적응형 이동)
-            print(f"rightx_current {rightx_current}")
+            # print(f"rightx_current {rightx_current}")
             if self.left_blocked_flag < 8:
                 leftx_current, lefty_current, self.left_blocked_flag, prev_left_margin, leftx_prev = self.sliding_window_lane_calculation(leftx_current, lefty_current,
                                                                                                                                 prev_left_margin, leftx_prev, 
