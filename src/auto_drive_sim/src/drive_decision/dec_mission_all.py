@@ -22,6 +22,7 @@ from std_msgs.msg import Int32
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from PIDController import PIDController
+from PIDctrl2 import Pidcal
 from tf.transformations import euler_from_quaternion
 from utils import check_timer
 import subprocess
@@ -43,6 +44,10 @@ class DecMissionAll:
         self.init_car_lane()
         self.init_mission4()
         self.init_goal()
+        self.Pidcal_ = Pidcal()
+        self.Pidcal_.x = 320  # 예: 현재 위치 (튜닝 시 사용)
+        self.Pidcal_.twiddle(setpoint=320)
+        print(self.Pidcal_.p)  # 튜닝된 kp, ki, kd 확인
 
     def init_pub(self):
         rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
@@ -51,7 +56,7 @@ class DecMissionAll:
         # self.servo_pub = rospy.Publisher('/commands/servo/ctrl', Float64, queue_size=1)
         self.motor_pub = rospy.Publisher('/commands/motor/speed', Float64, queue_size=1)
         self.servo_pub = rospy.Publisher('/commands/servo/position', Float64, queue_size=1)
-        self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         rospy.Subscriber("/lane_mode", Int32, self.CB_car_nav)
         rospy.Subscriber('/dr_info', String, self.callback)
         self.x = 0
@@ -74,6 +79,7 @@ class DecMissionAll:
     def init_goal(self):
         self.path1_01flag = False
         self.path1_02flag = False
+        self.go_goal_stop_flag = False
         
     def init_lidar_info(self):
         self.left_obstacle = False
@@ -520,25 +526,53 @@ class DecMissionAll:
             print(f"1")
             mode, left_lane, right_lane = self.ctrl_decision_left()
             self.ctrl_move(mode, left_lane, right_lane)
-    
-    def action_go_goal(self):
-        self.steer_01 = [0.60]
-        self.time_01 = [1]
-        if self.path1_02flag:
-            mode, left_lane, right_lane = self.ctrl_decision_right()
-            self.ctrl_move_right(mode, left_lane, right_lane)
-        elif self.path1_01flag:
-            for steer, time_val in zip(self.steer_01, self.time_01):
-                self.publish(400,steer)
-                sleep(time_val)
-                print(f"steer {steer}")
-            self.path1_02flag = True
-            
-        elif self.stop_line != [] and self.stop_line[MAX_Y] > 470:
-            self.path1_01flag = True
+    def chose_center(self):
+        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
+        left_lane = yellow_left
+        right_lane = white_right
+        self.right_lane_delta = 134
+        self.left_lane_delta = 163
+        if white_right:
+            self.center_index = right_lane[0][0] - self.right_lane_delta
+        elif left_lane:
+            self.center_index = left_lane[0][0] - self.right_lane_delta
         else:
-            mode, left_lane, right_lane = self.ctrl_decision_right()
-            self.ctrl_move_right(mode, left_lane, right_lane)
+            self.center_index = 320
+        print(f"self.center_index {self.center_index}")
+    def ctrl_moveByLine(self):
+        # self.center_pixel = 320
+        # self.steer_per_pixel = 2 / 640  # 수정 가능
+        # steer = self.Pidcal_.pid_control(self.center_index)
+        # steer = (steer + 1) / 2.0
+        # print(f"[INFO] steer: {steer:.2f} deg")
+        pixel_error = self.center_index - self.center_pixel  # +면 우측, -면 좌측
+        print(f"[INFO] pixel_error: {pixel_error:.2f} deg")
+        steer = pixel_error * self.steer_per_pixel * self.total_steer * 3 + 0.5
+        print(f"[INFO] pixel_error: {steer:.2f} deg")
+        # steer = self.pid.compute(pixel_error)
+        # 클리핑 (조향각 범위 제한)
+        steer = max(min(steer, self.max_steer), self.min_steer)
+        # steer_ratio = abs(steer) / self.max_steer  # 0 ~ 1
+        # speed = self.max_speed * (1 - steer_ratio)  # 회전 클수록 속도 감소
+        # speed = max(speed, self.min_speed)
+        speed = 400
+        # 5. 결과 저장 혹은 publish
+        self.publish(speed,steer)
+        print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")
+    def action_go_goal_01(self):
+        self.chose_center()
+        self.ctrl_moveByLine()
+        # 4.2876
+        # -3.6758
+    def action_go_goal_02(self):
+        if self.go_goal_stop_flag:
+            print(f"stop")
+            self.publish(0,0)
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 320:
+            self.go_goal_stop_flag = True
+        else:
+            self.chose_center()
+            self.ctrl_moveByLine()
 
     def processing(self):
         rate = rospy.Rate(20)
@@ -557,7 +591,10 @@ class DecMissionAll:
                         self.action_mission5()
                 elif self.lane_mode == 3:
                         print(f"mode {self.lane_mode}")
-                        self.action_go_goal()
+                        self.action_go_goal_01()
+                elif self.lane_mode == 4:
+                        print(f"mode {self.lane_mode}")
+                        self.action_go_goal_02()
                 else:
                     print(f"self.lane_mode {self.lane_mode}")
                     mode, left_lane, right_lane = self.ctrl_decision_right()
