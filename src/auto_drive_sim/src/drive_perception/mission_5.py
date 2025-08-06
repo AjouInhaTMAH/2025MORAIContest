@@ -261,7 +261,6 @@ class Traffic_control:
                 steer = 0.5 
                 #print(f"cross_flag: {self.cross_flag}, signal: {self.signal}")
 
-
             elif self.yellow_detected == True and self.blue_detected == False:
                 yellow_target = self.standard_line - 40 
                 yellow_error = self.yellow_center_index - yellow_target

@@ -109,7 +109,7 @@ class PerCamera:
         # cv2.imwrite("bin_img.png", bin_img) # 저장하기 위한 코드 
         return yellow_bin_img,white_bin_img
     
-    def extract_stop_line(self, white_bin_img, threshold=300):
+    def extract_stop_line(self, white_bin_img, threshold=240):
         # y축 방향으로 sum → 수평선은 y축 기준으로 sum값이 커짐
         horizontal_sum = np.sum(white_bin_img, axis=1) // 255  # shape: (height,)
         down_hist = horizontal_sum[self.img_y//4*2:]
@@ -138,16 +138,16 @@ class PerCamera:
 
         # 이미지 가로 중간값 (중앙 기준 나누기 위해)
         img_center_x = binary_img.shape[1] // 2
-
+        delta = 100
         # 좌/우 차선에 따라 검색 범위 제한
         if is_left_lane:
             if win_x_high > img_center_x:
-                win_x_high = img_center_x
+                win_x_high = img_center_x + delta
             if win_x_low > img_center_x:
                 return x_current, y_current - self.window_height, flag + 1, prev_margin, x_prev
         else:  # 오른쪽 차선
             if win_x_low < img_center_x:
-                win_x_low = img_center_x
+                win_x_low = img_center_x - delta
             if win_x_high < img_center_x:
                 return x_current, y_current - self.window_height, flag + 1, prev_margin, x_prev
 
@@ -162,7 +162,7 @@ class PerCamera:
             min_x = np.min(self.nonzerox[good_inds])
             max_x = np.max(self.nonzerox[good_inds])
 
-            if (max_x - min_x) > 100:  # 윈도우가 너무 넓으면 무시
+            if (max_x - min_x) > 200:  # 윈도우가 너무 넓으면 무시
                 y_current -= self.window_height
                 flag += 1
                 return x_current, y_current, flag, self.margin, x_prev
@@ -188,6 +188,7 @@ class PerCamera:
             flag += 1
 
         return x_current, y_current, flag, prev_margin, x_prev
+
     
     def sliding_window_adaptive(self,binary_img, nwindows=15, margin=80, minpix=100):
         # margin=80
