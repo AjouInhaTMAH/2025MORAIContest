@@ -39,8 +39,6 @@ class lane_ctrl:
         steer_msg = Float64()
         speed_msg.data = speed
         steer_msg.data = steer
-        #speed_msg.data = speed * 300
-        #steer_msg.data = ((steer / 19.5 + 1)) / 2
         self.motor_pub.publish(speed_msg)
         self.servo_pub.publish(steer_msg)
 

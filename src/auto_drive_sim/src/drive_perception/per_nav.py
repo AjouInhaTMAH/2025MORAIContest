@@ -22,13 +22,13 @@ class PerCarNavigation:
         rospy.init_node('per_car_nav_node')
         # zone 좌표 정의 (map 좌표 기준 -> /amcl_pose를 morai에서 실제로 뽑아옴, )
         self.zones = {
-            1: (0.042443, 8.8616749),   # mission 2 & 3 영역
+            1: (-0.02331218035026452, 10.6556),   # mission 2 & 3 영역
             2: (4.7866139, 4.34265),    # mission 5 영역
             3: (8.2325, 1.7338),     # mission 5 영역
-            401:(3.5279, 7.048),
-            402:(4.0596, 7.0403),
-            403:(4.6748, 6.52258),
-            404:(4.8693, 6.2139),
+            # 401:(3.5279, 7.048),
+            # 402:(4.0596, 7.0403),
+            # 403:(4.6748, 6.52258),
+            # 404:(4.8693, 6.2139),
         }
         self.zone_threshold = 0.5  # 허용 반경 (meters)
         rospy.Subscriber('/dr_info', String, self.callback)
