@@ -30,12 +30,12 @@ class PerCarNavigation:
             403:(4.6748, 6.52258),
             404:(4.8693, 6.2139),
         }
-        self.zone_threshold = 0.175  # 허용 반경 (meters)
+        self.zone_threshold = 0.5  # 허용 반경 (meters)
         rospy.Subscriber('/dr_info', String, self.callback)
         self.x = 0
-        self.xy = 0
-        self.xw = 0
-        self.x = 0
+        self.y = None
+        self.w = 0
+        self.vel = 0
         self.recent_zone = None
         self.zone_pub = rospy.Publisher('/lane_mode', Int32, queue_size=1)
         # rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.pose_callback)
@@ -48,17 +48,17 @@ class PerCarNavigation:
         try:
             data = json.loads(msg.data)
             self.x = data.get("x")
-            self.xy = data.get("y")
-            self.xw = data.get("yaw")
-            self.x = data.get("vel")
+            self.y = data.get("y")
+            self.yaw = data.get("yaw")
+            self.vel = data.get("vel")
         except json.JSONDecodeError as e:
             rospy.logwarn(f"JSON Decode Error: {e}")
         except Exception as e:
             rospy.logerr(f"Unexpected error: {e}")
             
     def check_zones(self):
-        x = self.current_pose.position.x
-        y = self.current_pose.position.y
+        x = self.x
+        y = self.y
         start = time()
         for zone_id, (zx, zy) in self.zones.items():
             dist = math.hypot(x - zx, y - zy)
@@ -78,12 +78,12 @@ class PerCarNavigation:
     def processing(self):
         rate = rospy.Rate(40)
         while not rospy.is_shutdown():
-            if self.current_pose is not None:
+            if self.y is not None:
                 self.check_timer.start()
                 self.check_zones()
                 self.rate.sleep()
                 # self.check_timer.check()
-                self.current_pose = None
+                self.y = None
             rate.sleep()
                 
 if __name__ == '__main__':

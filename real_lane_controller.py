@@ -31,6 +31,7 @@ class lane_ctrl:
         self.max_speed = 1200
         self.min_speed = 700
         self.stop_flag = False
+        self.stop_flag_num = 0
         self.center_index = 0
 
     def publish(self, speed, steer):
@@ -80,15 +81,15 @@ class lane_ctrl:
         right_lane = white_right
         #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
             
-        LANE_WIDTH_PIXELS = 220  # 적절히 조정
+        LANE_WIDTH_PIXELS = 260 # 적절히 조정
 
         if stop_line != []:
             cross_threshold = 35
             min_y, max_y = stop_line
             cross_diff = (max_y - min_y)
             if cross_threshold < cross_diff:
-                self.stop_flag = True
-            return "stop", [], []
+                self.stop_flag_num += 1
+            return self.stop_flag_num, [], []
         
         elif left_white_lane and right_lane:
             left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
@@ -99,11 +100,15 @@ class lane_ctrl:
             #total_weight = weight_left + weight_right
             #self.center_index = int((left_index * weight_left + right_index * weight_right) / total_weight)
             #self.center_index = int((left_index + right_index)//2)
+            if weight_left > weight_right:
+                left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
+                self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "first_lane", left_white_lane, []
             
-            right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
-            self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-            
-            return "lane_follow", left_white_lane, right_lane
+            else:
+                right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
+                self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "second_lane", [], right_lane
 
         elif left_white_lane and not right_lane:
             left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
@@ -113,7 +118,7 @@ class lane_ctrl:
         elif left_yellow_lane and right_lane:
             left_index = (left_yellow_lane[0][0] + left_yellow_lane[-1][0]) // 2
             self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-            return "yellow_guided", left_yellow_lane, []
+            return "first_lane", left_yellow_lane, []
 
         elif right_lane and not left_white_lane:
             right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
@@ -127,7 +132,7 @@ class lane_ctrl:
     def ctrl_move(self, mode, left_lane=None, right_lane=None):
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error*self.steer_per_pixel
-        
+        print(f"left_lane:{left_lane} / right_lane:{right_lane}")
         left_detected = bool(left_lane)
         right_detected = bool(right_lane)
         
@@ -179,7 +184,7 @@ class lane_ctrl:
         # 부드러운 steer_gain 계산 함수
     def get_steer_gain(self, curvature):
         A = 500.0  # 최대 gain
-        B = 0.00227
+        B = 0.0022
         return max(1.0, A * np.exp(-B * curvature))
 
     def get_base_speed(self, curvature):
@@ -198,7 +203,7 @@ class lane_ctrl:
         return int(speed)
 
 class PIDController:
-    def __init__(self, Kp=0.4, Ki=0.0, Kd=0.0522): # Kp = 1.0 Kd = 0.01
+    def __init__(self, Kp=0.47, Ki=0.0, Kd=0.0527): # Kp = 1.0 Kd = 0.01
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd

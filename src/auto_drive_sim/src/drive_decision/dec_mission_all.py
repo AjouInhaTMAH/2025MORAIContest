@@ -48,9 +48,12 @@ class DecMissionAll:
         self.motor_pub = rospy.Publisher('/commands/motor/ctrl', Float64, queue_size=1)
         self.servo_pub = rospy.Publisher('/commands/servo/ctrl', Float64, queue_size=1)
         self.lane_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        self.current_pose = PoseWithCovarianceStamped().pose.pose
         rospy.Subscriber("/lane_mode", Int32, self.CB_car_nav)
-        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.CB_pose)
+        rospy.Subscriber('/dr_info', String, self.callback)
+        self.x = 0
+        self.y = None
+        self.w = 0
+        self.vel = 0
         self.zones = {
             1: (0.042443, 8.8616749),   # mission 2 & 3 영역
             2: (4.7866139, 4.34265),    # mission 5 영역
@@ -103,7 +106,18 @@ class DecMissionAll:
         self.mi4_stop_flag = False
         self.mi4_in_flag = False
         self.mi4_out_flag = False
-
+    def callback(self, msg):
+        try:
+            data = json.loads(msg.data)
+            self.x = data.get("x")
+            self.y = data.get("y")
+            self.yaw = data.get("yaw")
+            self.vel = data.get("vel")
+        except json.JSONDecodeError as e:
+            rospy.logwarn(f"JSON Decode Error: {e}")
+        except Exception as e:
+            rospy.logerr(f"Unexpected error: {e}")
+            
     def CB_lidar_info(self,msg):
         try:
             data = json.loads(msg.data)
@@ -118,8 +132,6 @@ class DecMissionAll:
             print("복원 실패:", e)
     def CB_car_nav(self, msg):
         self.lane_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-    def CB_pose(self, msg):
-        self.current_pose = msg.pose.pose
         
     def check_lanes_number(self):
         if self.is_target_car_lane_1:
@@ -296,17 +308,15 @@ class DecMissionAll:
         print(f"angle_to_target {ty}")
         dx = tx - x
         dy = ty - y
+        dist = math.hypot(dx, dy)  # 거리 계산
         target_angle = math.atan2(dy, dx)
         angle_diff = self.normalize_angle(target_angle - w)
-        return angle_diff
-    
-    def get_yaw_from_pose(self,pose_msg):
-        # pose_msg는 geometry_msgs/Pose 또는 PoseWithCovarianceStamped.pose.pose
-        q = pose_msg.orientation
-        quaternion = [q.x, q.y, q.z, q.w]
-        roll, pitch, yaw = euler_from_quaternion(quaternion)
         
-        return yaw
+        weight = max(1.0, 5.0 / (dist + 1e-5))  # 5.0은 조정 가능
+        weighted_steer = angle_diff * weight
+        print(f"angle_diff {angle_diff}")
+        print(f"weighted_steer {weighted_steer}")
+        return weighted_steer
     
     def compute_drive_command(self,x, y, w, tx, ty):
         # 거리 계산
@@ -330,9 +340,9 @@ class DecMissionAll:
     
     def drvie_amcl(self):
         # 현재 위치
-        x = self.current_pose.position.x
-        y = self.current_pose.position.y
-        w = self.get_yaw_from_pose(self.current_pose)
+        x = self.x
+        y = self.y
+        w = self.yaw
         if self.lane_mode == 1:
             tx, ty = self.zones[401]
         elif self.lane_mode == 401:

@@ -200,7 +200,7 @@ class PerCamera:
             # img =msg
             self.check_timer.start()
             self.img_y, self.img_x = self.img.shape[0:2]
-            self.window_height = np.int(self.img_y / self.nwindows)
+            self.window_height = int(self.img_y / self.nwindows)
             warped_img = self.BEV_img_warp(self.img,self.img_y,self.img_x)
             warped_img_hsv = cv2.cvtColor(warped_img,cv2.COLOR_BGR2HSV)
             yellow_filtered_img, white_filtered_img = self.detect_color_yAndw(warped_img,warped_img_hsv)
@@ -240,7 +240,7 @@ class PerCamera:
             # self.check_timer.check()
             # print(f"time1 {end - start1} ")
             self.img = None
-        rate.sleep()
+            rate.sleep()
         
 if __name__ == '__main__':
     node = PerCamera()
