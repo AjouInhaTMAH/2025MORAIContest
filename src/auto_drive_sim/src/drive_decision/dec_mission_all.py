@@ -283,7 +283,22 @@ class DecMissionAll:
             if cross_threshold < cross_diff:
                 self.stop_flag_num += 1
             return self.stop_flag_num, [], []
-        
+        elif left_yellow_lane and right_lane:
+            weight_left = len(left_yellow_lane)
+            weight_right = len(right_lane)
+            #print(f"weight_left : {weight_left} / weight_right : {weight_right}")
+            #total_weight = weight_left + weight_right
+            #self.center_index = int((left_index * weight_left + right_index * weight_right) / total_weight)
+            #self.center_index = int((left_index + right_index)//2)
+            if weight_left > weight_right:
+                left_index = left_yellow_lane[-1][0]
+                self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "first_lane", left_white_lane, right_lane
+
+            else:
+                right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
+                self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+                return "second_lane", left_white_lane, right_lane
         elif left_white_lane and right_lane:
             left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
             right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
@@ -321,6 +336,9 @@ class DecMissionAll:
         else:
             self.center_index = self.center_pixel  # 정중앙
             return "go_straight", [], []
+            
+           
+        
     def ctrl_move(self, mode, left_lane=None, right_lane=None):
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error*self.steer_per_pixel
@@ -386,15 +404,15 @@ class DecMissionAll:
                 y_vals.append(pt[1])
 
         curvature = self.calculate_curvature(x_vals, y_vals)
-        if curvature < 2000:
-            steer = 0.88
-            base_speed = self.get_base_speed(2000)
-            pid_output = 0
-        else:
-            steer_gain = self.get_steer_gain_right(curvature)
-            base_speed = self.get_base_speed(curvature)
-            pid_output = self.pid.compute(steer_error)
-            steer = steer_gain*pid_output + 0.5
+        # if curvature < 2000:
+        #     steer = 0.88
+        #     base_speed = self.get_base_speed(2000)
+        #     pid_output = 0
+        # else:
+        steer_gain = self.get_steer_gain_right(curvature)
+        base_speed = self.get_base_speed(curvature)
+        pid_output = self.pid.compute(steer_error)
+        steer = steer_gain*pid_output + 0.5
 
         steer = max(self.min_steer, min(self.max_steer, steer))  # 스티어링 제한
         
@@ -420,6 +438,7 @@ class DecMissionAll:
         rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
+        rospy.loginfo(f"[steer_gain] value: {steer_gain:.2f}")
 
     def action_mission2_3(self):
         mode, left_lane, right_lane = self.ctrl_decision()
@@ -438,8 +457,8 @@ class DecMissionAll:
         B = 0.0022
         return max(1.0, A * np.exp(-B * curvature))
     def get_steer_gain_right(self, curvature):
-        A = 500.0  # 최대 gain
-        B = 0.008
+        A = 50.0  # 최대 gain
+        B = 0.012
         return max(1.0, A * np.exp(-B * curvature))
     def get_base_speed(self, curvature):
         min_speed = self.min_speed
@@ -503,27 +522,23 @@ class DecMissionAll:
             self.ctrl_move(mode, left_lane, right_lane)
     
     def action_go_goal(self):
-        self.steer_01 = [0.60,0.8,0.75]
-        self.time_01 = [0.5,2.5,0.5]
+        self.steer_01 = [0.60]
+        self.time_01 = [1]
         if self.path1_02flag:
-            print(f"hi2")
-            self.publish(0,0)
-            # mode, left_lane, right_lane = self.ctrl_decision()
-            # self.ctrl_move(mode, left_lane, right_lane)
+            mode, left_lane, right_lane = self.ctrl_decision_right()
+            self.ctrl_move_right(mode, left_lane, right_lane)
         elif self.path1_01flag:
-            print(f"hi1")
-            for steer in self.steer_01:
+            for steer, time_val in zip(self.steer_01, self.time_01):
                 self.publish(400,steer)
-                sleep(1)
+                sleep(time_val)
                 print(f"steer {steer}")
             self.path1_02flag = True
             
-        elif self.stop_line != [] and self.stop_line[MAX_Y] > 400:
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 470:
             self.path1_01flag = True
-            self.path1_02flag = True
         else:
-            mode, left_lane, right_lane = self.ctrl_decision()
-            self.ctrl_move(mode, left_lane, right_lane)
+            mode, left_lane, right_lane = self.ctrl_decision_right()
+            self.ctrl_move_right(mode, left_lane, right_lane)
 
     def processing(self):
         rate = rospy.Rate(20)

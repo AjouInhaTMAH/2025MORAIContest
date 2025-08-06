@@ -113,18 +113,24 @@ class PerCamera:
         # cv2.imwrite("bin_img.png", bin_img) # 저장하기 위한 코드 
         return yellow_bin_img,white_bin_img
     
-    def extract_stop_line(self,white_bin_img, threshold=300):
+    def extract_stop_line(self, white_bin_img, threshold=300):
         # y축 방향으로 sum → 수평선은 y축 기준으로 sum값이 커짐
         horizontal_sum = np.sum(white_bin_img, axis=1) // 255  # shape: (height,)
         down_hist = horizontal_sum[self.img_y//4*2:]
+        
         # threshold 이상인 위치 찾기
         stop_line_indices = np.where(down_hist > threshold)[0] + self.img_y//4*2
         if len(stop_line_indices) > 0:
             min_y = stop_line_indices[0]
             max_y = stop_line_indices[-1]
-            return int(min_y), int(max_y)
+            
+            # 디텍팅된 구간을 검은색(0)으로 만듦
+            white_bin_img[min_y:max_y+1, :] = 0
+
+            return [int(min_y), int(max_y)], white_bin_img
         else:
-            return []
+            return [], white_bin_img
+
         
     def sliding_window_lane_calculation(self, x_current, y_current, prev_margin, x_prev,
                                         blocked_flag, binary_img, is_left_lane, color=(0, 255, 0)):
@@ -247,7 +253,7 @@ class PerCamera:
             warped_img_hsv = cv2.cvtColor(warped_img,cv2.COLOR_BGR2HSV)
             yellow_filtered_img, white_filtered_img = self.detect_color_yAndw(warped_img,warped_img_hsv)
             yellow_bin_img,white_bin_img = self.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
-            stop_line = self.extract_stop_line(white_bin_img)
+            stop_line, white_bin_img= self.extract_stop_line(white_bin_img)
             yellow_lane_img, yellow_left_lane, yellow_right_lane = self.sliding_window_adaptive(yellow_bin_img)
             white_lane_img, white_left_lane, white_right_lane = self.sliding_window_adaptive(white_bin_img)
             
