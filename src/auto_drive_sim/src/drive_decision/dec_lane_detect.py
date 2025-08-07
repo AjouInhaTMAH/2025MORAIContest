@@ -87,7 +87,7 @@ class lane_detect:
     def set_camera_info(self,stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane):
         self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane
 
-    def publish(self, speed, steer):
+    def publish_move(self, speed, steer):
         speed_msg = Float64()
         steer_msg = Float64()
         speed_msg.data = speed
@@ -334,7 +334,7 @@ class lane_detect:
         
         #self.last_steer = steer
 
-        self.publish(speed, steer)
+        self.publish_move(speed, steer)
         
         rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
@@ -401,7 +401,7 @@ class lane_detect:
         deviation = abs(steer - 0.5)
         speed = max(self.min_speed, int(base_speed - deviation * (base_speed - self.min_speed)))
 
-        self.publish(speed, steer)
+        self.publish_move(speed, steer)
 
         rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
@@ -411,8 +411,7 @@ class lane_detect:
 
 
     def stop_time(self,time = 2):
-        self.motor_pub.publish(0)
-        self.servo_pub.publish(0)
+        self.publish_move(0, 0.5)
         sleep(time)
     def normalize_angle(self, angle):
         # [-pi, pi] 범위로 정규화
@@ -510,7 +509,7 @@ class lane_detect:
         # speed = max(speed, self.min_speed)
         speed = 400
         # 5. 결과 저장 혹은 publish
-        self.publish(speed,steer)
+        self.publish_move(speed,steer)
         print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")
     def chose_center_left(self):
         stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
@@ -542,8 +541,7 @@ class lane_detect:
             return True
         steer = ((steer / 19.5 + 1)) /2
         print(f"speed, steer {speed} {steer}")
-        self.motor_pub.publish(speed)
-        self.servo_pub.publish(steer)
+        self.publish_move(speed,steer)
         return False
     
     def check_obstacle_rotary(self):
