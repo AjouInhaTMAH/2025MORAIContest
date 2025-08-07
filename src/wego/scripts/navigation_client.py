@@ -25,7 +25,7 @@ class NavigationClient():
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        self.final_destination = (10.82014274597168, -0.31157612800598145)  # ← heading(w) 추가해야함!
+        self.final_destination = (11.05429565916404, -4.0502248616531675, 0.6822950037242963, 0.7310769644113145)  # ← heading(w) 추가해야함!
 
 
         # 4x4 transform matrix: ObjectInfo → map
@@ -161,9 +161,9 @@ class NavigationClient():
         ]
 
         # 마지막 고정 도착지점 추가
-        final_x, final_y = self.final_destination
-        self.goal_list.append(self.create_goal(final_x, final_y))
-        rospy.loginfo("📍 마지막 도착지점 추가됨: (%.2f, %.2f)" % (final_x, final_y))
+        final_x, final_y, final_w,final_z = self.final_destination
+        self.goal_list.append(self.create_goal(final_x, final_y,final_w,final_z))
+        rospy.loginfo("📍 마지막 도착지점 추가됨: (%.2f, %.2f, %.2f, %.2f)" % (final_x, final_y, final_w,final_z))
 
         self.send_goal()
 
