@@ -23,7 +23,7 @@ class PerLidar:
         print(f"lidar_class start")
         rospy.init_node('per_lidar_node')
         self.laser_data = None
-        rospy.Subscriber("/lidar2D", LaserScan, self.lidar_callback)
+        rospy.Subscriber("/lidar2D", LaserScan, self.CB_lidar_raw)
         self.pub_lidar = rospy.Publisher('/perception/lidar', String, queue_size=10)
         self.lane_length = 0.35 # 1개 차선 가로 길이
         self.rate = rospy.Rate(40)
@@ -39,7 +39,7 @@ class PerLidar:
         self.length_x_right = 0.35
         self.length_y_right = 1.5
         
-    def lidar_callback(self, msg):
+    def CB_lidar_raw(self, msg):
         self.laser_data = msg
       
     def view_obstacle_with_ROI(self,points):
@@ -118,6 +118,7 @@ class PerLidar:
 
         return front_pts, left_pts, right_pts
         # right 구역
+
     def decide_obstacle(self,points):
         results = []
         for region in points:

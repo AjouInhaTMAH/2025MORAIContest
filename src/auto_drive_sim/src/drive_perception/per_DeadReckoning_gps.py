@@ -9,6 +9,7 @@ from tf.transformations import euler_from_quaternion
 
 class DeadReckoningNode:
     def __init__(self):
+        print(f"DeadReckoningNode start")
         rospy.init_node('dead_reckoning_node')
 
         self.x = 0.0
@@ -19,14 +20,14 @@ class DeadReckoningNode:
         self.last_time = rospy.Time.now()
         self.initialized = False
 
-        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.amcl_callback)
-        rospy.Subscriber('/imu', Imu, self.imu_callback)
-        rospy.Subscriber('/sensors/core', VescStateStamped, self.vel_callback)
+        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.CB_amcl_raw)
+        rospy.Subscriber('/imu', Imu, self.CB_imu_raw)
+        rospy.Subscriber('/sensors/core', VescStateStamped, self.CB_vel_raw)
 
-        self.str_pub = rospy.Publisher('/dr_info', String, queue_size=1)
+        self.cur_pose_pub = rospy.Publisher('/cur_pose', String, queue_size=1)
         self.rate = rospy.Rate(50)
 
-    def amcl_callback(self, msg):
+    def CB_amcl_raw(self, msg):
         self.x = msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
         q = msg.pose.pose.orientation
@@ -34,14 +35,14 @@ class DeadReckoningNode:
         self.yaw = math.degrees(yaw_rad)
         self.last_time = rospy.Time.now()
         self.initialized = True
-        rospy.loginfo(f"[AMCL] 위치 초기화: x={self.x:.2f}, y={self.y:.2f}, yaw={self.yaw:.1f}")
+        # rospy.loginfo(f"[AMCL] 위치 초기화: x={self.x:.2f}, y={self.y:.2f}, yaw={self.yaw:.1f}")
 
-    def imu_callback(self, msg):
+    def CB_imu_raw(self, msg):
         q = msg.orientation
         _, _, yaw_rad = euler_from_quaternion([q.x, q.y, q.z, q.w])
         self.imu_yaw = math.degrees(yaw_rad)
 
-    def vel_callback(self, msg):
+    def CB_vel_raw(self, msg):
         if not self.initialized:
             return
 
@@ -63,7 +64,7 @@ class DeadReckoningNode:
         self.y += dy
         self.yaw = self.imu_yaw
 
-        rospy.loginfo(f"[DR] x={self.x:.2f}, y={self.y:.2f}, yaw={self.yaw:.1f} vel={self.vel:.2f}")
+        # rospy.loginfo(f"[DR] x={self.x:.2f}, y={self.y:.2f}, yaw={self.yaw:.1f} vel={self.vel:.2f}")
 
         # JSON 메시지 생성 및 publish
         msg_dict = {
@@ -73,7 +74,7 @@ class DeadReckoningNode:
             "vel": round(self.vel, 2)
         }
         msg_str = json.dumps(msg_dict)
-        self.str_pub.publish(msg_str)
+        self.cur_pose_pub.publish(msg_str)
 
     def run(self):
         while not rospy.is_shutdown():

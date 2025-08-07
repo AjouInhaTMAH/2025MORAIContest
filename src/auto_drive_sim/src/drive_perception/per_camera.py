@@ -28,18 +28,16 @@ class PerCamera:
         
     def init_pubSub(self):
         rospy.init_node("lane_dec")
-        rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_view_BEV, queue_size=1)
+        rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
         self.img = CompressedImage()
         self.img = None
         self.bridge = CvBridge()
         self.pub = rospy.Publisher('/perception/camera', String, queue_size=10)
-
     def init_color(self):
         self.yellow_lower = np.array([15,128,0])
         self.yellow_upper = np.array([40,255,255])
         self.white_lower = np.array([0,0,192])
         self.white_upper = np.array([179,64,255])
-
     def init_sliding(self):
         self.midpoint = None
         self.is_left_lane = True
@@ -62,7 +60,7 @@ class PerCamera:
         self.left_lanes =[]
         self.right_lanes =[]
         
-    def CB_view_BEV(self,msg):
+    def CB_cam_raw(self,msg):
         self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
     
     def BEV_img_warp(self,filtered_img,y,x):
@@ -127,7 +125,6 @@ class PerCamera:
         else:
             return [], white_bin_img
 
-        
     def sliding_window_lane_calculation(self, x_current, y_current, prev_margin, x_prev,
                                         blocked_flag, binary_img, is_left_lane, color=(0, 255, 0)):
         flag = blocked_flag
@@ -189,7 +186,6 @@ class PerCamera:
 
         return x_current, y_current, flag, prev_margin, x_prev
 
-    
     def sliding_window_adaptive(self,binary_img, nwindows=15, margin=80, minpix=100):
         # margin=80
         margin= 75

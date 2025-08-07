@@ -171,8 +171,9 @@ catkin_install_python(PROGRAMS
 
   src/drive_perception/per_camera.py
   src/drive_perception/per_lidar.py
-  src/drive_perception/per_imu.py
+  src/drive_perception/per_DeadReckoning_gps.py
   src/drive_perception/per_nav.py
+  src/drive_perception/per_traffic.py
 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
