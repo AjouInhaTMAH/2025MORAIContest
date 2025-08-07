@@ -41,7 +41,7 @@ class DecMissionAll:
         self.init_camera_info()
         self.init_pub()
         self.car_mission_status = [0,1,2,3,4,5]
-        self.current_car_mission = 1
+        self.current_car_mission = 3
         self.init_car_lane()
         self.init_mission4()
         self.init_goal()
@@ -205,7 +205,8 @@ class DecMissionAll:
         right_lane = white_right
         #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
             
-        LANE_WIDTH_PIXELS = 260 # 적절히 조정
+        # LANE_WIDTH_PIXELS = 260 # 적절히 조정
+        LANE_WIDTH_PIXELS = 270 # 적절히 조정
 
         if stop_line != []:
             cross_threshold = 35
