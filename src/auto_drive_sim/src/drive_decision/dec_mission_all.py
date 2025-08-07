@@ -51,7 +51,7 @@ class DecMissionAll:
         self.init_goal()
         self.lane_detect = lane_detect()
         self.lane_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
@@ -215,8 +215,8 @@ class DecMissionAll:
     def handle_zone_goal_01(self):
         self.lane_detect.chose_center_right()
         self.lane_detect.ctrl_moveByLine_right()
-        # mode, left_lane, right_lane = self.ctrl_decision_right()
-        # self.ctrl_move_right(mode, left_lane, right_lane)
+        # mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
+        # self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
     def handle_zone_goal_02(self):
         if self.go_goal_stop_end_flag:
             print(f"4!")
