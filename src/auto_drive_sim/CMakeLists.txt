@@ -163,6 +163,21 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
+catkin_install_python(PROGRAMS
+  src/drive_controller/ctrl_motor.py
+  src/drive_controller/ctrl_servo.py
+
+  src/drive_decision/dec_mission_all.py
+
+  src/drive_perception/per_camera.py
+  src/drive_perception/per_lidar.py
+  src/drive_perception/per_DeadReckoning_gps.py
+  src/drive_perception/per_nav.py
+  src/drive_perception/per_traffic.py
+
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
 # install(TARGETS ${PROJECT_NAME}_node

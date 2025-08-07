@@ -3,23 +3,17 @@
 import time
 
 class CheckTimer:
-    def __init__(self):
+    def __init__(self,name):
         self._start = None
-        self._end = None
+        self.name = name
 
     def start(self):
         self._start = time.time()
-        self._end = None
-
-    def end(self):
-        if self._start is None:
-            raise RuntimeError("Timer has not been started yet.")
-        self._end = time.time()
 
     def check(self):
         if self._start is None:
             raise RuntimeError("Timer has not been started yet.")
-        end_time = self._end if self._end is not None else time.time()
+        end_time = time.time()
         elapsed = end_time - self._start
-        print(f"[Timer] 경과 시간: {elapsed:.6f}초")
+        print(f"[{self.name}] [Timer] 경과 시간: {elapsed:.6f}초")
         return elapsed
