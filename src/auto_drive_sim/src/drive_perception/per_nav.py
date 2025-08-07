@@ -32,20 +32,19 @@ class PerCarNavigation:
             # 404:(4.8693, 6.2139),
         }
         self.zone_threshold = 0.5  # 허용 반경 (meters)
-        rospy.Subscriber('/dr_info', String, self.callback)
+        rospy.Subscriber('/cur_pose', String, self.CB_currentPose_info)
         self.x = 0
         self.y = None
         self.w = 0
         self.vel = 0
         self.recent_zone = None
         self.zone_pub = rospy.Publisher('/lane_mode', Int32, queue_size=1)
-        # rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.pose_callback)
         self.rate = rospy.Rate(40)
         self.init_timer()
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerCarNavigation")
 
-    def callback(self, msg):
+    def CB_currentPose_info(self, msg):
         try:
             data = json.loads(msg.data)
             self.x = data.get("x")
