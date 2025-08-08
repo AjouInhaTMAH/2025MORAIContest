@@ -397,7 +397,6 @@ class lane_detect:
         rospy.loginfo(f"[steer_gain] value: {steer_gain:.2f}")
         rospy.loginfo(f"[stop_flag_num] value: {self.stop_flag_num:.2f}")
 
-
     def stop_time(self,time = 2):
         self.publish_move(0, 0.5)
         sleep(time)

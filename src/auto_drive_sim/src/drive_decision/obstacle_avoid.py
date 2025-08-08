@@ -13,7 +13,7 @@ from std_msgs.msg import Float64, Int32
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
+from obstacle_avoid.msg import PersonBBox
 import subprocess
 
 
@@ -30,12 +30,12 @@ class Traffic_control:
         rospy.Subscriber("/image_jpeg/compressed", CompressedImage,       self.cam_CB)
         rospy.Subscriber("/lane_mode",             Int32,                 self.car_nav_CB)
         rospy.Subscriber("/lidar2D",               LaserScan,             self.lidar_CB)
-        # rospy.Subscriber("/person_bbox",           PersonBBox,            self.dynamic_obs_CB)
+        rospy.Subscriber("/person_bbox",           PersonBBox,            self.dynamic_obs_CB)
 
         # ---------------- 상태/모드 ----------------
         self.lane_mode        = 0
         self.lidar_flag       = False
-        self.current_lane     = "right"
+        self.current_lane     = None
         self.avoid_side       = None
         self.in_avoid_mode    = False
         self.dynamic_obs_flag = False
@@ -79,15 +79,19 @@ class Traffic_control:
         # 8  : steer=0.2, speed=800 유지(3.0s)
         # 9  : steer=0.5, speed=800 유지(3.0s)
         self.thick_plan = {
-            1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
-            2: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
-            4: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
-            5: {"type":"steer_fixed", "steer":0.2, "speed":800, "duration":3.0}, # 왼쪽 
-            # 문제가 영역 5에는 두꺼운 선이 없다. -> /amcl_pose로 일정 영역에 왔을때 이 데이터를 쓰도록 수정해야 함.. 
-            6: {"type":"steer_fixed", "steer":0.8, "speed":800, "duration":2.0}, # 오른쪽
-            7: {"type":"steer_fixed", "steer":0.2, "speed":600, "duration":2.0}, # 왼쪽
-            8: {"type":"steer_fixed", "steer":0.2, "speed":800, "duration":3.0}, # 왼쪽
-            9: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":3.0},
+
+            #
+            1: {"type":"steer_fixed", "steer":0.8, "speed":800, "duration":2.0}, # 오른쪽 c
+            
+            # 
+            # 1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+            # 2: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+            # 4: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+            # 5: {"type":"steer_fixed", "steer":0.2, "speed":800, "duration":3.0}, # 왼쪽
+            # 6: {"type":"steer_fixed", "steer":0.8, "speed":800, "duration":2.0}, # 오른쪽 c
+            # 7: {"type":"steer_fixed", "steer":0.2, "speed":600, "duration":2.0}, # 왼쪽
+            # 8: {"type":"steer_fixed", "steer":0.2, "speed":800, "duration":3.0}, # right
+            # 9: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":3.0},
         }
         self.thick_count           = 0
         self.thick_cooldown        = rospy.get_param("~thick_cooldown", 2.0)  # 재트리거 방지
@@ -97,6 +101,18 @@ class Traffic_control:
     # ---------- 콜백들 ----------
     def car_nav_CB(self, msg):
         self.lane_mode = msg.data
+
+    def traffic_CB(self, msg):
+        self.traffic_msg = msg
+        if self.traffic_msg.trafficLightIndex == "SN000002":
+            self.signal = self.traffic_msg.trafficLightStatus
+            if self.prev_signal != self.signal:
+                self.prev_signal = self.signal
+            self.traffic_think()
+
+    def traffic_think(self):
+        # 필요 시 구현
+        pass
 
     def dynamic_obs_CB(self, msg):
         center_x   = (msg.xmin + msg.xmax) / 2.0
@@ -111,124 +127,193 @@ class Traffic_control:
             self.last_detected_time = rospy.get_time()
         else:
             self.dynamic_obs_flag = False
-
+#######################
     def cam_CB(self, msg):
-        self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
-        self.warped_img, self.center_index, self.standard_line, self.degree_per_pixel = self.cam_lane_detection(msg)
-
-    def cam_lane_detection(self, msg):
-        # 원본 -> HSV
-        self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
-        self.y, self.x = self.img.shape[0:2]
-        img_hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-
-        # 노란/흰 차선 마스크
-        yellow_range = cv2.inRange(img_hsv, np.array([15,128,0]),  np.array([40,255,255]))
-        white_range  = cv2.inRange(img_hsv, np.array([0,0,192]),   np.array([179,64,255]))
-        combined_range = cv2.bitwise_or(yellow_range, white_range)
-        filltered_img  = cv2.bitwise_and(self.img, self.img, mask=combined_range)
-
-        # 버드뷰 워핑
-        src_points = np.float32([[0,420],[275,260],[self.x-275,260],[self.x,420]])
-        dst_points = np.float32([[self.x//8,480],[self.x//8,0],[self.x//8*7,0],[self.x//8*7,480]])
-        matrix     = cv2.getPerspectiveTransform(src_points, dst_points)
-        warped_img = cv2.warpPerspective(filltered_img, matrix, [self.x, self.y])
-
-        # 바이너리
-        grayed_img = cv2.cvtColor(warped_img, cv2.COLOR_BGR2GRAY)
-        bin_img    = np.zeros_like(grayed_img)
-        bin_img[grayed_img > 50] = 1
-
-        # 하단 1/4 ROI 히스토그램
-        bottom_bin  = bin_img[self.y*3//4:, :]
-        histogram_x = np.sum(bottom_bin, axis=0)
-        histogram_y = np.sum(bottom_bin, axis=1)
-
-        left_hist    = histogram_x[0:self.x//2]
-        right_hist   = histogram_x[self.x//2:]
-        down_hist    = histogram_y
-
-        left_indices  = np.where(left_hist  > 20)[0]
-        right_indices = np.where(right_hist > 20)[0] + self.x//2
-        # (참고) down_hist는 self.y*3//4 기준이므로 +오프셋 하고 싶으면 추가
-
-        center_index = self.x // 2
-        LEFT_MIN_PIXELS, RIGHT_MIN_PIXELS = 10, 10
-
-        # lane_mode에 따른 center 결정
         try:
-            if self.lane_mode == 1:
-                if len(left_indices) > LEFT_MIN_PIXELS:
-                    center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
-            elif self.lane_mode == 2:
-                if len(left_indices) > LEFT_MIN_PIXELS:
-                    center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
-            elif self.lane_mode == 3:
-                if len(right_indices) > RIGHT_MIN_PIXELS:
-                    center_index = ((right_indices[0] + right_indices[-1]) // 2) - 160
-            elif self.lane_mode == 4:
-                center_index = self.x // 2
-            else:
-                if len(left_indices) > LEFT_MIN_PIXELS and len(right_indices) > RIGHT_MIN_PIXELS:
-                    center_index = (left_indices[0] + right_indices[-1]) // 2
-                elif len(right_indices) > len(left_indices):
-                    center_index = ((right_indices[0] + right_indices[-1]) // 2) - 160
-                elif len(left_indices)  > len(right_indices):
-                    center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
-                else:
-                    center_index = self.standard_line
+            img = self.bridge.compressed_imgmsg_to_cv2(msg)
         except Exception as e:
-            center_index = self.standard_line
-            rospy.logwarn(f"lane calc exception: {e}")
+            rospy.logwarn(f"[cam_CB] CvBridge error: {e}")
+            self.img = None
+            self.warped_img = None
+            return
 
-        standard_line    = self.x // 2
-        degree_per_pixel = 1 / self.x
+        if img is None:
+            rospy.logwarn("[cam_CB] decoded img is None")
+            self.img = None
+            self.warped_img = None
+            return
 
-        # -------- 두꺼운선 감지 (하단 1/4 ROI 행 기준) --------
-        rows_roi = bin_img[self.y*3//4:, :]
-        row_sum  = np.sum(rows_roi, axis=1)
-        ROW_PIX_MIN  = int(0.55 * self.x)  # 한 행이 화면폭의 55% 이상 흰색
-        MIN_RUN_ROWS = 6                   # 연속 6줄 이상이면 두꺼운선
-        run, max_run = 0, 0
-        for val in row_sum:
-            if val >= ROW_PIX_MIN:
-                run += 1
+        self.img = img
+
+        res = self.cam_lane_detection(img)   # ← msg 말고 img!
+        if not res or len(res) != 4:
+            rospy.logerr("[cam_CB] cam_lane_detection returned None/invalid")
+            h, w = img.shape[:2]
+            self.warped_img = None
+            self.standard_line = w // 2
+            self.center_index  = self.standard_line
+            self.degree_per_pixel = 1.0 / max(w, 1)
+            return
+
+        self.warped_img, self.center_index, self.standard_line, self.degree_per_pixel = res
+
+    def cam_lane_detection(self, img):
+        try:
+            if img is None:
+                raise ValueError("img is None")
+
+            # 🔁 여기서부터는 img만 사용 (self.img 금지)
+            h, w = img.shape[:2]
+
+            # --- 원본 -> HSV ---
+            img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+            # --- 노란/흰 차선 마스크 ---
+            yellow_range = cv2.inRange(img_hsv, np.array([15,128,0]),  np.array([40,255,255]))
+            white_range  = cv2.inRange(img_hsv, np.array([0,0,192]),   np.array([179,64,255]))
+            combined_range = cv2.bitwise_or(yellow_range, white_range)
+            filtered       = cv2.bitwise_and(img, img, mask=combined_range)
+
+            # --- 버드뷰 워핑 ---
+            src_points = np.float32([[0,420],[275,260],[w-275,260],[w,420]])
+            dst_points = np.float32([[w//8,480],[w//8,0],[w//8*7,0],[w//8*7,480]])
+            M = cv2.getPerspectiveTransform(src_points, dst_points)
+            warped = cv2.warpPerspective(filtered, M, (w, h))
+
+            # --- 바이너리 ---
+            gray    = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+            bin_img = np.zeros_like(gray, dtype=np.uint8)
+            bin_img[gray > 50] = 1
+
+            # --- 하단 1/4 ROI 히스토그램 ---
+            bottom_bin  = bin_img[h*3//4:, :]
+            histogram_x = np.sum(bottom_bin, axis=0)
+            histogram_y = np.sum(bottom_bin, axis=1)
+
+            left_hist    = histogram_x[:w//2]
+            right_hist   = histogram_x[w//2:]
+
+            left_indices  = np.where(left_hist  > 20)[0]
+            right_indices = np.where(right_hist > 20)[0] + w//2
+
+            # --- center 계산 ---
+            standard_line = w // 2
+            center_index  = standard_line
+            LEFT_MIN_PIXELS, RIGHT_MIN_PIXELS = 10, 10
+
+            try:
+                if self.lane_mode == 1:
+                    if len(left_indices) > LEFT_MIN_PIXELS:
+                        center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
+                elif self.lane_mode == 2:
+                    if len(left_indices) > LEFT_MIN_PIXELS:
+                        center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
+                elif self.lane_mode == 3:
+                    if len(right_indices) > RIGHT_MIN_PIXELS:
+                        center_index = ((right_indices[0] + right_indices[-1]) // 2) - 160
+                elif self.lane_mode == 4:
+                    center_index = standard_line
+                else:
+                    if len(left_indices) > LEFT_MIN_PIXELS and len(right_indices) > RIGHT_MIN_PIXELS:
+                        center_index = (left_indices[0] + right_indices[-1]) // 2
+                    elif len(right_indices) > len(left_indices):
+                        center_index = ((right_indices[0] + right_indices[-1]) // 2) - 160
+                    elif len(left_indices)  > len(right_indices):
+                        center_index = ((left_indices[0] + left_indices[-1]) // 2) + 160
+                    else:
+                        center_index = standard_line
+            except Exception as e:
+                rospy.logwarn(f"lane calc exception: {e}")
+                center_index = standard_line
+
+            degree_per_pixel = 1.0 / max(w, 1)
+
+            # --- 두꺼운선(THICK) 감지 ---
+            rows_roi = bin_img[h*3//4:, :]
+            row_sum  = np.sum(rows_roi, axis=1)
+            ROW_PIX_MIN  = int(0.55 * w)
+            MIN_RUN_ROWS = 6
+            run = max_run = 0
+            for val in row_sum:
+                if val >= ROW_PIX_MIN:
+                    run += 1
+                else:
+                    if run > max_run: max_run = run
+                    run = 0
+            if run > max_run: max_run = run
+
+            now = rospy.get_time()
+            if (max_run >= MIN_RUN_ROWS) and (now > self.thick_cooldown_until):
+                self.thick_count += 1
+                self.thick_cooldown_until = now + self.thick_cooldown
+                plan = self.thick_plan.get(self.thick_count)
+                if plan:
+                    self.thick_action = {
+                        "type":  plan["type"],
+                        "steer": plan["steer"],
+                        "speed": plan["speed"],
+                        "until": now + plan["duration"]
+                    }
+                rospy.logwarn(f"[THICK] detected run={max_run} -> count={self.thick_count} plan={self.thick_action}")
+                cv2.putText(warped, f"THICK COUNT={self.thick_count}",
+                            (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+
+            # ✅ 항상 4-튜플 반환
+            return warped, int(center_index), int(standard_line), float(degree_per_pixel)
+
+        except Exception as e:
+            rospy.logerr(f"[cam_lane_detection] error: {e}")
+            # 실패해도 4-튜플 반환
+            if isinstance(img, np.ndarray):
+                h, w = img.shape[:2]
             else:
-                if run > max_run: max_run = run
-                run = 0
-        if run > max_run: max_run = run
-        
-        # 두꺼운 선에 따른 동작
-        now = rospy.get_time()
-        if (max_run >= MIN_RUN_ROWS) and (now > self.thick_cooldown_until):
-            self.thick_count += 1                       # 리셋 없음 (요청사항)
-            self.thick_cooldown_until = now + self.thick_cooldown
-            plan = self.thick_plan.get(self.thick_count) # ** 
-            if plan:
-                self.thick_action = {
-                    "type":  plan["type"],
-                    "steer": plan["steer"],
-                    "speed": plan["speed"],
-                    "until": now + plan["duration"]
-                }
-            rospy.logwarn(f"[THICK] detected run={max_run} -> count={self.thick_count} plan={self.thick_action}")
-            cv2.putText(warped_img, f"THICK COUNT={self.thick_count}",
-                        (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+                h, w = 480, 640
+            standard_line = w // 2
+            center_index  = standard_line
+            degree_per_pixel = 1.0 / max(w, 1)
+            return None, center_index, standard_line, degree_per_pixel
 
-        return warped_img, center_index, standard_line, degree_per_pixel
+
+    # def estimate_current_lane(self, warped_img):
+    #     # 안전가드: 이미지 없으면 기존값 유지
+    #     if not isinstance(warped_img, np.ndarray) or warped_img.size == 0:
+    #         return self.current_lane
+
+    #     img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
+    #     yellow_mask = cv2.inRange(img_hsv, np.array([15,128,0]),  np.array([40,255,255]))
+    #     white_mask  = cv2.inRange(img_hsv, np.array([0,0,192]),   np.array([179,64,255]))
+
+    #     h, w = yellow_mask.shape
+    #     left_yellow_count = cv2.countNonZero(yellow_mask[:, :w//2])
+    #     right_white_count = cv2.countNonZero(white_mask[:,  w//2:])
+
+    #     threshold = 300
+    #     if left_yellow_count > threshold and left_yellow_count > right_white_count:
+    #         return "left"
+    #     elif right_white_count > threshold:
+    #         return "right"
+    #     else:
+    #         return self.current_lane
 
     def estimate_current_lane(self, warped_img):
-        # 안전가드: 이미지 없으면 기존값 유지
-        if not isinstance(warped_img, np.ndarray) or warped_img.size == 0:
-            return self.current_lane
-
         img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
-        yellow_mask = cv2.inRange(img_hsv, np.array([15,128,0]),  np.array([40,255,255]))
-        white_mask  = cv2.inRange(img_hsv, np.array([0,0,192]),   np.array([179,64,255]))
+        
+        yellow_lower = np.array([15,128,0])
+        yellow_upper = np.array([40,255,255])
+        yellow_mask  = cv2.inRange(img_hsv, yellow_lower, yellow_upper)
 
-        h, w = yellow_mask.shape
-        left_yellow_count = cv2.countNonZero(yellow_mask[:, :w//2])
-        right_white_count = cv2.countNonZero(white_mask[:,  w//2:])
+        white_lower = np.array([0,0,192])
+        white_upper = np.array([179,64,255])
+        white_mask  = cv2.inRange(img_hsv, white_lower, white_upper)
+
+        height, width = yellow_mask.shape
+        left_roi  = yellow_mask[:, :width//2]
+        right_roi = white_mask[:,  width//2:]
+
+        left_yellow_count  = cv2.countNonZero(left_roi)
+        right_white_count  = cv2.countNonZero(right_roi)
+
+        #print(f"🟨 left yellow: {left_yellow_count}, ⬜ right white: {right_white_count}")
 
         threshold = 300
         if left_yellow_count > threshold and left_yellow_count > right_white_count:
@@ -236,7 +321,7 @@ class Traffic_control:
         elif right_white_count > threshold:
             return "right"
         else:
-            return self.current_lane
+            return self.current_lane  # 변화 없으면 유지
 
     # ---------------- 메인 루프 ----------------
     def action(self):
@@ -253,8 +338,10 @@ class Traffic_control:
         # 2) LIDAR 회피
         elif self.lidar_flag or self.in_avoid_mode:
             self.current_lane = self.estimate_current_lane(self.warped_img)
+            print(f"current lane {self.current_lane}")
             if not self.in_avoid_mode:
                 self.avoid_side    = "left" if self.current_lane == "right" else "right"
+                print(f"avoid lane {self.avoid_side}")
                 self.in_avoid_mode = True
                 self.obs_flag      = True
                 self.waypoint_idx  = 0
@@ -266,16 +353,16 @@ class Traffic_control:
                 self.last_time = now
 
             if   self.waypoint_idx == 0:
-                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 0
-                self.sleep_duration = 1.5
-            elif self.waypoint_idx == 1:
-                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 1000
-                self.sleep_duration = 0.5
+                steer, speed = (0.4 if self.avoid_side == "left" else 0.6), 0
+                self.sleep_duration = 1.0
+            elif self.waypoint_idx == 1: ##
+                steer, speed = (0.2 if self.avoid_side == "left" else 0.8), 900
+                self.sleep_duration = 1.0
             elif self.waypoint_idx == 2:
-                steer, speed = (0.8 if self.avoid_side == "left" else 0.2), 800
-                self.sleep_duration = 0.8
+                steer, speed = (0.9 if self.avoid_side == "left" else 0.1), 700
+                self.sleep_duration = 0.7
             elif self.waypoint_idx == 3:
-                steer, speed = 0.5, 800
+                steer, speed = 0.5, 600
                 self.sleep_duration = 0.5
             elif self.waypoint_idx == 4:
                 self.in_avoid_mode = False
@@ -317,7 +404,7 @@ class Traffic_control:
         # <--------------예외 -------------->
         # 5) 예외
         else:
-            rospy.logwarn("🚫 이미지 없음 또는 조건 불충족 → 정지")
+            # rospy.logwarn("🚫 이미지 없음 또는 조건 불충족 → 정지")
             steer, speed = 0.5, 0
 
         # Publish
@@ -342,7 +429,7 @@ class Traffic_control:
         filt = [r for r in forward if 0.0 < r <= 1.5]
         if len(filt) > 0:
             dist = np.mean(filt)
-            if dist < 1.5:
+            if dist < 1.0:
                 self.lidar_flag = True
             else:
                 self.lidar_flag = False

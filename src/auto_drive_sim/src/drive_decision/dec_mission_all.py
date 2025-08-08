@@ -88,8 +88,6 @@ class DecMissionAll:
         self.yellow_right_lane = None
         self.white_left_lane = None
         self.white_right_lane = None 
-
-        
     def init_mission2_3(self):
         self.lidar_flag       = False
         self.current_lane     = "right"
@@ -97,6 +95,7 @@ class DecMissionAll:
         self.in_avoid_mode    = False
         self.dynamic_obs_flag = False
         self.obs_flag         = False
+        self.count_stopsline = 0
         self.thick_plan = {
             1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
         }
@@ -126,7 +125,6 @@ class DecMissionAll:
             rospy.logerr(f"Unexpected error: {e}")
     def CB_check_to_go_traffic_info(self, msg):
         self.is_to_go_traffic = msg.data
-        
     def CB_lidar_info(self,msg):
         try:
             data = json.loads(msg.data)
@@ -212,11 +210,14 @@ class DecMissionAll:
             self.lane_detect.publish_move(speed,steer)
         elif self.stop_line != [] and self.stop_line[MAX_Y] > 440:
         # {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
-            print(f"hihi")
             steer = float(self.thick_plan[1]["steer"])
             speed = float(self.thick_plan[1]["speed"])
             duration = float(self.thick_plan[1]["duration"])
             self.lane_detect.publish_move(speed,steer)
+            self.count_stopsline += 1
+            print(f"self.count_stopsline {self.count_stopsline}")
+            print(f"self.count_stopsline {self.count_stopsline}")
+            print(f"self.count_stopsline {self.count_stopsline}")
             sleep(duration)
         else:
             mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision()
