@@ -3,295 +3,359 @@
 import sys
 import os
 
+current_dir = os.path.dirname(os.path.abspath(__file__))  # dec_mission_all.py가 있는 폴더
+# src/drive_decision 까지 상대 경로로 올라갔다가 내려가기 (예: 현재 파일 위치 기준)
+drive_decision_path = os.path.abspath(os.path.join(current_dir, '..', '..', 'src', 'drive_decision'))
+
+if drive_decision_path not in sys.path:
+    sys.path.insert(0, drive_decision_path)
+    
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))  # drive_controller 상위 폴더
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-import rospy
-from sensor_msgs.msg import CompressedImage
-from cv_bridge import CvBridge
-import cv2 
-import numpy as np
-from std_msgs.msg import Float64
-import json
-from std_msgs.msg import String
-from utils import check_timer
 from time import *
-import PIDController
+import rospy
+from std_msgs.msg import Float64
+from std_msgs.msg import Int32
+from std_msgs.msg import String
+from std_msgs.msg import Bool
+from utils import check_timer
+import subprocess
 import json
+import numpy as np
+from morai_msgs.msg import GetTrafficLightStatus
+from dec_lane_detect import lane_detect
+from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
+import cv2
+
 MIN_Y = 0
 MAX_Y = 1
 
 class DecMissionAll:
     def __init__(self):
         print(f"DecMissionAll start")
-        self.pub_init()
-        self.car_mission_status = [0,1,2,3,4,5]
-        self.current_car_mission = 2
-        self.car_lane_init()
-        self.mission4_init()
 
-    def pub_init(self):
-        self.motor_pub = rospy.Publisher('/commands/motor/ctrl', Float64, queue_size=1)
-        self.motor_cmd_msg_pub = Float64()
-        self.servo_pub = rospy.Publisher('/commands/servo/ctrl', Float64, queue_size=1)
-        self.servo_cmd_msg_pub = Float64()
-        self.rate_motor = rospy.Rate(33)
-        self.rate_motor = rospy.Rate(33)
-        self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = None,None,None,None,None
-        rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
+        rospy.init_node('dec_mission_all_node')
+        self.kill_slim_mover()
         
-    def CB_camera_info(self,msg):
-        self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = None,None,None,None,None
+        self.init_lidar_info()
+        self.init_camera_info()
+        
+        self.init_pubSub()
+        
+        self.init_mission2_3()
+        self.init_mission4()
+        self.init_mission5()
+        self.init_goal()
+        self.lane_detect = lane_detect()
+        self.lane_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.lane_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.lane_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+    def kill_slim_mover(self):
+        node_name = '/throttle_interpolator'
         try:
-            data = json.loads(msg.data)
-            for item in data:
-                print(item)
-            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = data[0],data[1],data[2],data[3],data[4]
-        except Exception as e:
-            print("복원 실패:", e)
-    def car_lane_init(self):
-        self.is_target_car_lane_1 = True
-        self.is_target_car_lane_1 = False
-        self.car_lane_number = {"null" : -1, "forward" : 0, "left" : 1, "right" : 2}
-        self.current_car_lane_number = -1
-        self.prev_car_lane_number = -1
-        self.car_lane_env = {"null" : -1, "forward" : 0, "left" : 1, "right" : 2}
-        self.current_car_lane_env = -1
-        self.prev_car_lane_env = -1
-        
-        self.stop_line = None
+            subprocess.run(['rosnode', 'kill', node_name], check=True)
+            print(f"✅ 노드 {node_name} 종료 성공")
+        except subprocess.CalledProcessError:
+            print(f"❌ 노드 {node_name} 종료 실패 (이미 종료되었거나 존재하지 않음)")
+    def init_pubSub(self):
+        rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
+        rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
+        rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info)
+        rospy.Subscriber("/person_bbox", PersonBBox, self.CB_dynamic_obs)
+
+        rospy.Subscriber("/lane_mode", Int32, self.CB_car_nav_info)
+        rospy.Subscriber('/cur_pose', String, self.CB_currentPose_info)
+        self.is_to_go_traffic = False
+        self.traffic_msg = GetTrafficLightStatus()
+        self.x = 0
+        self.y = None
+        self.w = 0
+        self.vel = 0
+        self.motor_cmd_msg_pub = Float64()
+        self.servo_cmd_msg_pub = Float64()
+        self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
+
+    def init_lidar_info(self):
+        self.left_obstacle = False
+        self.front_obstacle = False
+        self.right_obstacle = False
+    def init_camera_info(self):
+        self.stop_line = []
+
         self.yellow_left_lane = None
         self.yellow_right_lane = None
         self.white_left_lane = None
         self.white_right_lane = None 
-        self.current_left_lane = None
-        self.current_right_lane = None
-        
-        self.curve_degree = 50
-        self.car_center_pixel = 320
-        self.car_steer_per_pixel = 1 / 640
-        self.pid_steer = PIDController.PIDController()
-        # self.pid_steer = PIDController(Kp=0.1, Ki=0.001, Kd=0.000001)
-        
-        self.max_speed = 4
-        self.min_speed = 2
-        self.max_steer = 19.5
-        self.min_steer = -19.5
-        self.total_steer = self.max_steer - self.min_steer
-        self.pre_spped = 1
 
-    def mission4_init(self):
+    def init_mission2_3(self):
+        self.lidar_flag       = False
+        self.current_lane     = "right"
+        self.avoid_side       = None
+        self.in_avoid_mode    = False
+        self.dynamic_obs_flag = False
+        self.obs_flag         = False
+        self.count_stopsline = 0
+        self.thick_plan = {
+            1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+        }
+        
+    def init_mission4(self):
         self.mi4_stop_flag = False
         self.mi4_in_flag = False
         self.mi4_out_flag = False
-    
-    def check_lanes_number(self):
-        if self.is_target_car_lane_1:
-            if self.yellow_left_lane != [] and self.white_right_lane != []:
-                self.current_left_lane = self.yellow_left_lane
-                self.current_right_lane = self.white_right_lane
-                self.current_car_lane_number = self.car_lane_number["forward"]
-            elif self.yellow_right_lane != []:
-                self.current_car_lane_number = self.car_lane_number["right"]
-            elif self.white_left_lane == [] and self.white_right_lane != []:
-                self.current_car_lane_number = self.car_lane_number["right"]
-            elif self.white_left_lane != [] and self.white_right_lane == []:
-                self.current_car_lane_number = self.car_lane_number["left"]
-            elif self.white_left_lane != [] and self.white_right_lane != []:
-                if self.prev_car_lane_number == self.car_lane_number["right"]:
-                    self.current_car_lane_number = self.car_lane_number["right"]
-                else:
-                    self.current_car_lane_number = self.car_lane_number["left"]
-            else:
-                self.current_car_lane_number = self.car_lane_number["null"]
+    def init_mission5(self):
+        self.stop_mission5_flag = False
+        self.pass_mission5_flag = False
+    def init_goal(self):
+        self.go_goal_stop_flag = False
+        self.go_goal_stop_end_flag = False
+        
+    def CB_currentPose_info(self, msg):
+        try:
+            data = json.loads(msg.data)
+            self.x = data.get("x")
+            self.y = data.get("y")
+            self.yaw = data.get("yaw")
+            self.vel = data.get("vel")
+            self.lane_detect.set_currentPose_info(self.x, self.y, self.yaw)
+        except json.JSONDecodeError as e:
+            rospy.logwarn(f"JSON Decode Error: {e}")
+        except Exception as e:
+            rospy.logerr(f"Unexpected error: {e}")
+    def CB_check_to_go_traffic_info(self, msg):
+        self.is_to_go_traffic = msg.data
+    def CB_lidar_info(self,msg):
+        try:
+            data = json.loads(msg.data)
+            self.left_obstacle, self.front_obstacle, self.right_obstacle = data[0],data[1],data[2]
+            self.lidar_flag = data[3]
+            self.lane_detect.set_lidar_info(self.left_obstacle, self.front_obstacle, self.right_obstacle)
+        except Exception as e:
+            print("복원 실패:", e)
+    def CB_camera_info(self,msg):
+        try:
+            data = json.loads(msg.data)
+            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane, self.current_lane = data[0],data[1],data[2],data[3],data[4], data[5]
+            self.lane_detect.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
+        except Exception as e:
+            print("복원 실패:", e)
+    def CB_dynamic_obs(self, msg):
+        center_x   = (msg.xmin + msg.xmax) / 2.0
+        box_height = msg.ymax - msg.ymin
+        frame_width, frame_height = 640, 480
+        margin = frame_width * 0.15 / 2.0
+        center_min = frame_width/2.0 - margin
+        center_max = frame_width/2.0 + margin
+        HEIGHT_THRESHOLD = 0.2 * frame_height
+        if (center_min <= center_x <= center_max) and (box_height > HEIGHT_THRESHOLD):
+            self.dynamic_obs_flag   = True
         else:
-            if self.yellow_left_lane != [] and self.white_right_lane != []:
-                self.current_car_lane_number = self.car_lane_number["right"]
-            elif self.yellow_right_lane != []:
-                self.current_car_lane_number = self.car_lane_number["right"]
-            elif self.white_left_lane == [] and self.white_right_lane != []:
-                self.current_car_lane_number = self.car_lane_number["right"]
-            elif self.white_left_lane != [] and self.white_right_lane == []:
-                self.current_car_lane_number = self.car_lane_number["left"]
-            elif self.white_left_lane != [] and self.white_right_lane != []:
-                if self.white_left_lane != [] and self.white_right_lane != []:
-                    self.current_left_lane = self.white_left_lane
-                    self.current_right_lane = self.white_right_lane
-                    self.current_car_lane_number = self.car_lane_number["forward"]
-                else:
-                    self.current_car_lane_number = self.car_lane_number["right"]
+            self.dynamic_obs_flag = False
+
+    def CB_car_nav_info(self, msg):
+        self.lane_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
+        
+    def handle_zone_mission2_3(self):
+        now = rospy.get_time()
+        
+        if self.dynamic_obs_flag:
+            print(f"동적 장애물 발견")
+            steer, speed = 0.5, 0
+            self.lidar_flag = False
+            self.obs_flag   = True
+            self.waypoint_idx = -1
+            self.lane_detect.publish_move(speed,steer)
+            
+        elif self.lidar_flag or self.in_avoid_mode:
+            print(f"정적 장애물 발견")
+            if not self.in_avoid_mode:
+                self.avoid_side    = "left" if self.current_lane == "right" else "right"
+                self.in_avoid_mode = True
+                self.obs_flag      = True
+                self.waypoint_idx  = 0
+                self.last_time     = now
+                self.sleep_duration= 1.0
+
+            if now - self.last_time > self.sleep_duration:
+                self.waypoint_idx += 1
+                self.last_time = now
+
+            if   self.waypoint_idx == 0:
+                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 0
+                self.sleep_duration = 1.5
+            elif self.waypoint_idx == 1:
+                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 1000
+                self.sleep_duration = 0.5
+            elif self.waypoint_idx == 2:
+                steer, speed = (0.8 if self.avoid_side == "left" else 0.2), 800
+                self.sleep_duration = 0.8
+            elif self.waypoint_idx == 3:
+                steer, speed = 0.5, 800
+                self.sleep_duration = 0.5
+            elif self.waypoint_idx == 4:
+                self.in_avoid_mode = False
+                self.lidar_flag = False
+                self.obs_flag   = False
+                self.waypoint_idx = -1
+                self.sleep_duration= 0.0
+                self.avoid_side   = None
+                steer, speed = 0.5, 800
             else:
-                self.current_car_lane_number = self.car_lane_number["null"]
-        self.prev_car_lane_number = self.current_car_lane_number
-    def check_lanes_env(self):
-        self.prev_car_lane_env = self.current_car_lane_env
-        if self.current_car_lane_number == self.car_lane_number["forward"]:
-            detect_lane_center = self.detect_center()
-            point_direction = self.car_center_pixel - detect_lane_center
-            if point_direction > self.curve_degree:
-                self.current_car_lane_env = self.car_lane_env["left"]
-                pass
-            elif point_direction < self.curve_degree:
-                self.current_car_lane_env = self.car_lane_env["right"]
-                pass
-            else:
-                self.current_car_lane_env = self.car_lane_env["forward"]
-                pass
+                self.in_avoid_mode = False
+                self.lidar_flag = False
+                self.obs_flag   = False
+                self.waypoint_idx = -1
+                steer, speed = 0.5, 0
+            self.lane_detect.publish_move(speed,steer)
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 440:
+        # {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+            steer = float(self.thick_plan[1]["steer"])
+            speed = float(self.thick_plan[1]["speed"])
+            duration = float(self.thick_plan[1]["duration"])
+            self.lane_detect.publish_move(speed,steer)
+            self.count_stopsline += 1
+            print(f"self.count_stopsline {self.count_stopsline}")
+            print(f"self.count_stopsline {self.count_stopsline}")
+            print(f"self.count_stopsline {self.count_stopsline}")
+            sleep(duration)
         else:
-            self.current_car_lane_env = self.car_lane_env["null"]
-    def check_lanes_status(self):
-        self.check_lanes_number()
-        self.check_lanes_env()
-    
-    def move_left(self):
-        self.motor_pub.publish(8)
-        self.servo_pub.publish(-19.5)
-    def move_right(self):
-        self.motor_pub.publish(8)
-        self.servo_pub.publish(19.5)
-    def move_null(self):
-        self.motor_pub.publish(8)
-        self.servo_pub.publish(-0)
-        
-    def detect_center(self):
-        # lane_centers = []
-        # for i in range(3):
-        #     left = self.current_left_lane[i] if len(self.current_left_lane) > i else None
-        #     right = self.current_right_lane[i] if len(self.current_right_lane) > i else None
-
-        #     if left is not None and right is not None:
-        #         center = (left + right) / 2.0
-        #     elif left is not None:
-        #         center = left
-        #     elif right is not None:
-        #         center = right
-        #     else:
-        #         continue  # 둘 다 없으면 스킵
-
-        #     lane_centers.append(center)
-
-        # if lane_centers:
-        #     detect_lane_center = sum(lane_centers) / len(lane_centers)
-        # else:
-        #     detect_lane_center = (self.current_left_lane[0] + self.current_right_lane[0]) / 2.0
-        
-        alpha = 0.85
-        start_center = (self.current_left_lane[0] + self.current_right_lane[0]) / 2.0
-        end_center = (self.current_left_lane[-1] + self.current_right_lane[-1]) / 2.0
-        detect_lane_center = start_center * alpha + (1 - alpha) * end_center
-        
-        detect_lane_center = (self.current_left_lane[0] + self.current_right_lane[0]) / 2.0
-        return detect_lane_center
-    def moveByLine(self):
-        if self.current_car_lane_number == self.car_lane_number["null"]:
-            self.move_null()
-        elif self.current_car_lane_number == self.car_lane_number["left"]:
-            self.move_left()
-        elif self.current_car_lane_number == self.car_lane_number["right"]:
-            self.move_right()
-        else:
-            # 1. 차선 중심 계산
-            detect_lane_center = self.detect_center()
-            # detect_lane_center = (self.current_left_lane[-1] + self.current_right_lane[-1]) / 2.0
-            # 2. 차선 중심과 차량 중심의 픽셀 오차
-            pixel_error = detect_lane_center - self.car_center_pixel  # +면 우측, -면 좌측
-            # 3. 조향각 계산 (픽셀 오차 → 각도로 환산)
-            if self.pre_spped > 7:
-                pixel_error = pixel_error * self.car_steer_per_pixel * self.max_steer
-            else:
-                print(f"steersteersteersteersteersteersteersteer {pixel_error}")
-                pixel_error = pixel_error * self.car_steer_per_pixel * self.total_steer * 3
-                print(f"steersteersteersteersteersteersteersteer {pixel_error}")
-            steer = self.pid_steer.compute(pixel_error)
-            # 클리핑 (조향각 범위 제한)
-            steer = max(min(steer, self.max_steer), self.min_steer)
-            # 4. 속도 계산 (회전이 클수록 느려짐)
-            steer_ratio = abs(steer) / self.max_steer  # 0 ~ 1
-            speed = self.max_speed * (1 - steer_ratio)  # 회전 클수록 속도 감소
-            speed = max(speed, self.min_speed)
-            self.pre_spped = speed
-            # 5. 결과 저장 혹은 publish
-            self.motor_pub.publish(speed)
-            self.servo_pub.publish(steer)
-            print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")
-        
-    def check_mission_change(self):
-        if self.prev_car_lane_env == self.car_lane_env["left"] and self.current_car_lane_env == self.car_lane_env["forward"]:
-            self.current_car_mission = 2
-
-    def mission2_ctrl(self):
-        self.is_target_car_lane_1 = False
-        # self.is_target_car_lane_1 = True
-        # self.check_mission_change()
-        # ------------------------- 
-        # 각자 해야하는 제어가 있을 것이다.
-        # 미션 2 레이더 값이 있다. 전방에 뭐 있으면 걸고 거기서 제어를 한다.
-        
-        self.moveByLine() # 차선 따라가는 함수
-
-    def mission3_ctrl(self):
-        self.motor_pub.publish(0)
-
-    def stop_time(self):
-        self.motor_pub.publish(0)
-        self.servo_pub.publish(0)
-        sleep(2)
-
-    def fast_hardcoding_mission4(self):
+            mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision()
+            self.lane_detect.pth01_ctrl_move(mode, left_lane, right_lane)
+            
+        # 부드러운 steer_gain 계산 함수
+    def handle_zone_mission4(self):
         if self.mi4_out_flag:
-            self.moveByLine() # 차선 따라가는 함수
+            print(f"5")
+            mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_left()
+            self.lane_detect.pth01_ctrl_move(mode, left_lane, right_lane)
         elif self.mi4_in_flag:
-            self.motor_pub.publish(8)
-            self.servo_pub.publish(-8.5)
+            self.lane_detect.publish_move(2400,-0.7179)
             sleep(0.16)
-            self.motor_pub.publish(7)
-            self.servo_pub.publish(19.5)
+            self.lane_detect.publish_move(2100,1)
             sleep(0.425)
             self.mi4_out_flag = True
-            self.stop_time()
+            print(f"4")
+            self.lane_detect.stop_time()
         elif self.mi4_stop_flag:
-            self.motor_pub.publish(8)
-            self.servo_pub.publish(0)
-            sleep(0.275)
-            self.motor_pub.publish(8.0)
-            self.servo_pub.publish(19.5)
+            print(f"3")
+            if self.lane_detect.check_obstacle_rotary():
+                return
+            print(f"no obs")
+            self.lane_detect.publish_move(2400,0.5)
+            # sleep(0.275)
+            sleep(0.55)
+            self.lane_detect.publish_move(2400,1)
             sleep(0.4)
             self.mi4_in_flag = True
-        elif self.stop_line[MAX_Y] > 440:
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 240:
+            print(f"2")
             self.mi4_stop_flag =True
-            self.stop_time()
+            self.lane_detect.stop_time(2)
         else:
-            self.moveByLine() # 차선 따라가는 함수
-    def mission4_ctrl(self):
-        self.is_target_car_lane_1 = False
-        self.fast_hardcoding_mission4()
+            print(f"1")
+            self.lane_detect.chose_center_left()
+            self.lane_detect.ctrl_moveByLine_right()
+            # mode, left_lane, right_lane = self.ctrl_decision_left()
+            # self.ctrl_move(mode, left_lane, right_lane)
+    def handle_zone_mission5(self):
+        if self.pass_mission5_flag:
+            self.lane_detect.chose_center_right()
+            self.lane_detect.ctrl_moveByLine_right()
+        elif self.stop_mission5_flag and self.is_to_go_traffic:
+            print(f"movemove")
+            steer = 0.5
+            speed = 800
+            self.lane_detect.publish(speed,steer)
+            sleep(0.5)
+            steer = 0.3
+            speed = 800
+            self.lane_detect.publish(speed,steer)
+            sleep(2)
+            steer = 0.225
+            speed = 800
+            self.lane_detect.publish(speed,steer)
+            sleep(2)
+            self.pass_mission5_flag = True
+            # self.stop_time(5)
+        elif self.stop_mission5_flag:
+            print(f"stopstop")
+            self.lane_detect.publish(0,0.5)
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 400:
+            print(f"2")
+            self.stop_mission5_flag =True
+            self.lane_detect.stop_time(0)
+        else:
+            self.lane_detect.chose_center_right()
+            self.lane_detect.ctrl_moveByLine_right()
+    def handle_zone_goal_01(self):
+        self.lane_detect.chose_center_right()
+        self.lane_detect.ctrl_moveByLine_right()
+        # mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
+        # self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
+    def handle_zone_goal_02(self):
+        if self.go_goal_stop_end_flag:
+            print(f"4!")
+            self.lane_detect.chose_center_right()
+            self.lane_detect.ctrl_moveByLine_right()
+        elif self.go_goal_stop_flag:
+            self.go_goal_stop_end_flag = self.lane_detect.drvie_amcl()
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 320:
+            print(f"stop!")
+            self.go_goal_stop_flag = True
+        else:
+            print(f"1!")
+            self.lane_detect.chose_center_right()
+            self.lane_detect.ctrl_moveByLine_right()
+
 
     def processing(self):
+        """_summary_
+        현재 구역을 나누었다.
+        미션 2 & 3 구역
+        미션 4 구역
+        미션 5 구역
+        골인 지점 경로 1
+        골인 지점 경로 2
+        이는 유동적으로 변할 수 있으므로 유의해야 한다.
+        해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
+        """
+        rate = rospy.Rate(20)
         while not rospy.is_shutdown():
             start = time()
-            if self.stop_line is None:
-                continue
-            self.check_lanes_status()
+            # print(f"self.stop_line {self.stop_line}")
+            if self.yellow_left_lane is not None or self.white_left_lane is not None or self.white_right_lane is not None:
+                if self.lane_mode == 0:
+                    print(f"mode {self.lane_mode}")
+                    self.handle_zone_mission2_3()
+                elif self.lane_mode == 1:
+                    print(f"mode {self.lane_mode}")
+                    self.handle_zone_mission4()
+                elif self.lane_mode == 2:
+                        print(f"mode {self.lane_mode}")
+                        self.handle_zone_mission5()
+                elif self.lane_mode == 3:
+                        print(f"mode {self.lane_mode}")
+                        self.handle_zone_goal_01()
+                elif self.lane_mode == 4:
+                        print(f"mode {self.lane_mode}")
+                        self.handle_zone_goal_02()
+                else:
+                    print(f"self.lane_mode {self.lane_mode}")
+                    mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
+                    self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
             end = time()
-            print(f"hihihi")
-            if self.car_mission_status[self.current_car_mission] == 1:
-                pass
-            elif self.car_mission_status[self.current_car_mission] == 2:
-                print(f"mission 2")
-                print(f"self.current_car_lane_number {self.current_car_lane_number}")
-                print(f"self.current_left_lane, {self.current_left_lane}, self.current_right_lane, {self.current_right_lane}")
-                self.mission2_ctrl()
-                pass
-            elif self.car_mission_status[self.current_car_mission] == 3:
-                print(f"mission 3")
-                self.mission3_ctrl()
-            elif self.car_mission_status[self.current_car_mission] == 4:
-                print(f"mission 4")
-                self.mission4_ctrl()
-            elif self.car_mission_status[self.current_car_mission] == 5:
-                pass
+            print(f"time2 {end - start}")
+            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
             
-            # print(f"time2 {end - start}")
-            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = None,None,None,None,None
+            rate.sleep()
+            
+if __name__ == '__main__':
+
+    node = DecMissionAll()
+    node.processing()   # spin 대신 processing 돌기
+
