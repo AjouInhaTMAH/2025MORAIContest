@@ -21,16 +21,14 @@ from std_msgs.msg import Float64
 from std_msgs.msg import Int32
 from std_msgs.msg import String
 from std_msgs.msg import Bool
-from geometry_msgs.msg import PoseWithCovarianceStamped
-from PIDController import PIDController
-from tf.transformations import euler_from_quaternion
 from utils import check_timer
 import subprocess
 import json
-import math
 import numpy as np
 from morai_msgs.msg import GetTrafficLightStatus
 from dec_lane_detect import lane_detect
+from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
+import cv2
 MIN_Y = 0
 MAX_Y = 1
 
@@ -66,10 +64,7 @@ class DecMissionAll:
         rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
         rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
         rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info)
-        # self.motor_pub = rospy.Publisher('/commands/motor/ctrl', Float64, queue_size=1)
-        # self.servo_pub = rospy.Publisher('/commands/servo/ctrl', Float64, queue_size=1)
-        self.motor_pub = rospy.Publisher('/commands/motor/speed', Float64, queue_size=1)
-        self.servo_pub = rospy.Publisher('/commands/servo/position', Float64, queue_size=1)
+        rospy.Subscriber("/person_bbox", PersonBBox, self.CB_dynamic_obs)
 
         rospy.Subscriber("/lane_mode", Int32, self.CB_car_nav_info)
         rospy.Subscriber('/cur_pose', String, self.CB_currentPose_info)
@@ -96,7 +91,16 @@ class DecMissionAll:
 
         
     def init_mission2_3(self):
-        pass
+        self.lidar_flag       = False
+        self.current_lane     = "right"
+        self.avoid_side       = None
+        self.in_avoid_mode    = False
+        self.dynamic_obs_flag = False
+        self.obs_flag         = False
+        self.thick_plan = {
+            1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+        }
+        
     def init_mission4(self):
         self.mi4_stop_flag = False
         self.mi4_in_flag = False
@@ -127,22 +131,97 @@ class DecMissionAll:
         try:
             data = json.loads(msg.data)
             self.left_obstacle, self.front_obstacle, self.right_obstacle = data[0],data[1],data[2]
+            self.lidar_flag = data[3]
             self.lane_detect.set_lidar_info(self.left_obstacle, self.front_obstacle, self.right_obstacle)
         except Exception as e:
             print("복원 실패:", e)
     def CB_camera_info(self,msg):
         try:
             data = json.loads(msg.data)
-            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = data[0],data[1],data[2],data[3],data[4]
+            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane, self.current_lane = data[0],data[1],data[2],data[3],data[4], data[5]
             self.lane_detect.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
         except Exception as e:
             print("복원 실패:", e)
+    def CB_dynamic_obs(self, msg):
+        center_x   = (msg.xmin + msg.xmax) / 2.0
+        box_height = msg.ymax - msg.ymin
+        frame_width, frame_height = 640, 480
+        margin = frame_width * 0.15 / 2.0
+        center_min = frame_width/2.0 - margin
+        center_max = frame_width/2.0 + margin
+        HEIGHT_THRESHOLD = 0.2 * frame_height
+        if (center_min <= center_x <= center_max) and (box_height > HEIGHT_THRESHOLD):
+            self.dynamic_obs_flag   = True
+        else:
+            self.dynamic_obs_flag = False
+
     def CB_car_nav_info(self, msg):
         self.lane_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-
+        
     def handle_zone_mission2_3(self):
-        mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision()
-        self.lane_detect.pth01_ctrl_move(mode, left_lane, right_lane)
+        now = rospy.get_time()
+        
+        if self.dynamic_obs_flag:
+            print(f"동적 장애물 발견")
+            steer, speed = 0.5, 0
+            self.lidar_flag = False
+            self.obs_flag   = True
+            self.waypoint_idx = -1
+            self.lane_detect.publish_move(speed,steer)
+            
+        elif self.lidar_flag or self.in_avoid_mode:
+            print(f"정적 장애물 발견")
+            if not self.in_avoid_mode:
+                self.avoid_side    = "left" if self.current_lane == "right" else "right"
+                self.in_avoid_mode = True
+                self.obs_flag      = True
+                self.waypoint_idx  = 0
+                self.last_time     = now
+                self.sleep_duration= 1.0
+
+            if now - self.last_time > self.sleep_duration:
+                self.waypoint_idx += 1
+                self.last_time = now
+
+            if   self.waypoint_idx == 0:
+                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 0
+                self.sleep_duration = 1.5
+            elif self.waypoint_idx == 1:
+                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 1000
+                self.sleep_duration = 0.5
+            elif self.waypoint_idx == 2:
+                steer, speed = (0.8 if self.avoid_side == "left" else 0.2), 800
+                self.sleep_duration = 0.8
+            elif self.waypoint_idx == 3:
+                steer, speed = 0.5, 800
+                self.sleep_duration = 0.5
+            elif self.waypoint_idx == 4:
+                self.in_avoid_mode = False
+                self.lidar_flag = False
+                self.obs_flag   = False
+                self.waypoint_idx = -1
+                self.sleep_duration= 0.0
+                self.avoid_side   = None
+                steer, speed = 0.5, 800
+            else:
+                self.in_avoid_mode = False
+                self.lidar_flag = False
+                self.obs_flag   = False
+                self.waypoint_idx = -1
+                steer, speed = 0.5, 0
+            self.lane_detect.publish_move(speed,steer)
+        elif self.stop_line != [] and self.stop_line[MAX_Y] > 440:
+        # {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
+            print(f"hihi")
+            steer = float(self.thick_plan[1]["steer"])
+            speed = float(self.thick_plan[1]["speed"])
+            duration = float(self.thick_plan[1]["duration"])
+            self.lane_detect.publish_move(speed,steer)
+            sleep(duration)
+        else:
+            mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision()
+            self.lane_detect.pth01_ctrl_move(mode, left_lane, right_lane)
+            
         # 부드러운 steer_gain 계산 함수
     def handle_zone_mission4(self):
         if self.mi4_out_flag:
@@ -150,11 +229,9 @@ class DecMissionAll:
             mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_left()
             self.lane_detect.pth01_ctrl_move(mode, left_lane, right_lane)
         elif self.mi4_in_flag:
-            self.motor_pub.publish(2400)
-            self.servo_pub.publish(-0.7179)
+            self.lane_detect.publish_move(2400,-0.7179)
             sleep(0.16)
-            self.motor_pub.publish(2100)
-            self.servo_pub.publish(1)
+            self.lane_detect.publish_move(2100,1)
             sleep(0.425)
             self.mi4_out_flag = True
             print(f"4")
@@ -164,12 +241,10 @@ class DecMissionAll:
             if self.lane_detect.check_obstacle_rotary():
                 return
             print(f"no obs")
-            self.motor_pub.publish(2400)
-            self.servo_pub.publish(0.5)
+            self.lane_detect.publish_move(2400,0.5)
             # sleep(0.275)
             sleep(0.55)
-            self.motor_pub.publish(2400)
-            self.servo_pub.publish(1)
+            self.lane_detect.publish_move(2400,1)
             sleep(0.4)
             self.mi4_in_flag = True
         elif self.stop_line != [] and self.stop_line[MAX_Y] > 240:
@@ -269,7 +344,7 @@ class DecMissionAll:
                     mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
                     self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
             end = time()
-            # print(f"time2 {end - start}")
+            print(f"time2 {end - start}")
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
             
             rate.sleep()

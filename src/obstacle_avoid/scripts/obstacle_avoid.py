@@ -13,7 +13,7 @@ from std_msgs.msg import Float64, Int32
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
+# from obstacle_avoid.msg import PersonBBox
 import subprocess
 
 
@@ -97,6 +97,18 @@ class Traffic_control:
     # ---------- 콜백들 ----------
     def car_nav_CB(self, msg):
         self.lane_mode = msg.data
+
+    def traffic_CB(self, msg):
+        self.traffic_msg = msg
+        if self.traffic_msg.trafficLightIndex == "SN000002":
+            self.signal = self.traffic_msg.trafficLightStatus
+            if self.prev_signal != self.signal:
+                self.prev_signal = self.signal
+            self.traffic_think()
+
+    def traffic_think(self):
+        # 필요 시 구현
+        pass
 
     def dynamic_obs_CB(self, msg):
         center_x   = (msg.xmin + msg.xmax) / 2.0
@@ -317,7 +329,7 @@ class Traffic_control:
         # <--------------예외 -------------->
         # 5) 예외
         else:
-            rospy.logwarn("🚫 이미지 없음 또는 조건 불충족 → 정지")
+            # rospy.logwarn("🚫 이미지 없음 또는 조건 불충족 → 정지")
             steer, speed = 0.5, 0
 
         # Publish

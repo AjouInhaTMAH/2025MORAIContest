@@ -276,7 +276,7 @@ class lane_detect:
             return 1e4  # 계산 실패 시 직선으로 간주
     def pth01_get_steer_gain(self, curvature):
         A = 500.0  # 최대 gain
-        B = 0.0022
+        B = 0.003
         return max(1.0, A * np.exp(-B * curvature))
     def pth01_get_base_speed(self, curvature):
         min_speed = self.min_speed
