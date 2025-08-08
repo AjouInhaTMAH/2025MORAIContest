@@ -29,12 +29,14 @@ from morai_msgs.msg import GetTrafficLightStatus
 from dec_lane_detect import lane_detect
 from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
 import cv2
+
 MIN_Y = 0
 MAX_Y = 1
 
 class DecMissionAll:
     def __init__(self):
         print(f"DecMissionAll start")
+
         rospy.init_node('dec_mission_all_node')
         self.kill_slim_mover()
         
@@ -84,10 +86,12 @@ class DecMissionAll:
         self.right_obstacle = False
     def init_camera_info(self):
         self.stop_line = []
+
         self.yellow_left_lane = None
         self.yellow_right_lane = None
         self.white_left_lane = None
         self.white_right_lane = None 
+
     def init_mission2_3(self):
         self.lidar_flag       = False
         self.current_lane     = "right"
@@ -354,3 +358,4 @@ if __name__ == '__main__':
 
     node = DecMissionAll()
     node.processing()   # spin 대신 processing 돌기
+

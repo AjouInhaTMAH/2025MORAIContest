@@ -7,6 +7,7 @@ class CheckTimer:
         self._start = None
         self.name = name
 
+
     def start(self):
         self._start = time.time()
 
