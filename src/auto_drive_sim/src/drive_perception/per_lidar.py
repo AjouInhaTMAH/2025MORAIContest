@@ -107,6 +107,10 @@ class PerLidar:
         # 전방
         mask_front = (-1.0 <= x) & (x <= 0) & (np.abs(y) <= 0.175)
         front_pts = points_np[mask_front]
+        
+        # 전방
+        mask_front_near = (-1.0 <= x) & (x <= 0) & (np.abs(y) <= 0.175)
+        front_pts_near = points_np[mask_front_near]
 
         # 좌측
         mask_left = (-1.0 <= x) & (x <= 0) & (-0.525<= y) & (y <= -0.175)
@@ -116,7 +120,7 @@ class PerLidar:
         mask_right = (-1.5 <= x) & (x <= 0) & (0.175 <= y) & (y <= 0.525)
         right_pts = points_np[mask_right]
 
-        return front_pts, left_pts, right_pts
+        return front_pts, left_pts, right_pts ,front_pts_near
         # right 구역
 
     def decide_obstacle(self,points):
@@ -132,27 +136,15 @@ class PerLidar:
         while not rospy.is_shutdown():
             if self.laser_data is not None:
                 self.check_timer.start()
-                # 모든 점을 현재 위치를 기준이 0,0 이라고 할때, x,y값으로 출력하도록 하기, 앞이 x+, 오른쪽이 y + 방향이다.
+                # 모든 점을 현재 위치를 기준이 0,0 이라고 할때, x,y값으로 출력하도록 하기, 앞이 x-, 오른쪽이 y + 방향이다.
                 points = self.calculate_xy_coordinates()
-                front_pts, left_pts, right_pts = self.divide_ROI(points)
-                # print(f"left_pts : {left_pts}")
-                # print(f"front_pts : {front_pts}")
-                # print(f"right_pts : {right_pts}")
-                # print(f"left_pts : {len(left_pts)}")
-                # print(f"front_pts : {len(front_pts)}")
-                # print(f"right_pts : {len(right_pts)}")
+                self.view_obstacle_with_ROI(points)
+                front_pts, left_pts, right_pts, front_pts_near = self.divide_ROI(points)
                 
-                obstacles = self.decide_obstacle((left_pts,front_pts,right_pts))
-                # print(f"obstacles : {obstacles}")
+                obstacles = self.decide_obstacle((left_pts,front_pts,right_pts,front_pts_near))
                 json_str = json.dumps(obstacles)
                 self.pub_lidar.publish(json_str)
                 self.rate.sleep()
-                # 출력: 앞이 x+, 오른쪽이 y+
-                # print(f"end time {time() - start}")
-                
-                # self.view_obstacle(points)
-                # self.view_obstacle_with_ROI(points)
-                # self.check_timer.check()
                 self.laser_data = None
             rate.sleep()
             

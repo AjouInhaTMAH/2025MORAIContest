@@ -1,8 +1,12 @@
+#!/usr/bin/env python
 import rospy
 import actionlib
 import math
-from geometry_msgs.msg import Pose, PoseWithCovarianceStamped
+import numpy as np
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from nav_msgs.srv import GetPlan
+from morai_msgs.msg import ObjectStatusList
 
 class NavigationClient():
     def __init__(self):
@@ -15,24 +19,37 @@ class NavigationClient():
         self.goal_index = 0
         self.goal_sent = False
         self.distance_threshold = 1.0
-
         self.robot_x = None
         self.robot_y = None
 
-        self.received_waypoints = [None, None, None]  # wp1, wp2, wp3
+        self.delivery_objects = [None, None]
+        self.delivery_goal = [None]
+        self.route_planned = False
+        self.final_destination = (11.05429565916404, -4.0502248616531675, 0.6822950037242963, 0.7310769644113145)  # ← heading(w) 추가해야함!
 
-        # Subscribe to robot pose
+
+        # 4x4 transform matrix: ObjectInfo → map
+        self.T_map_from_objectinfo = np.array([[ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
+        [ 1.00000000e+00, 6.12323400e-17 , 0.00000000e+00, -4.38229799e+00],
+        [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00, -3.10335420e-02],
+        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]]
+        )
+
+        rospy.wait_for_service('/move_base/make_plan')
+        self.make_plan = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
+
         rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.pose_callback)
-        # Subscribe to each waypoint
-        rospy.Subscriber("/wp1", Pose, self.wp1_callback)
-        rospy.Subscriber("/wp2", Pose, self.wp2_callback)
-        rospy.Subscriber("/wp3", Pose, self.wp3_callback)
-
+        rospy.Subscriber("/delivery_object", ObjectStatusList, self.object_callback)
         rospy.Timer(rospy.Duration(0.1), self.check_distance)
 
-        self.final_goal = self.create_goal(10.531286239624023, -1.1053885221481323, 0.7098, 0.7043)
+    def transform_to_map(self, x, y, z=0.0):
+        pt = np.array([x, y, z, 1.0])  # Homogeneous coordinates
+        pt_map = self.T_map_from_objectinfo @ pt
+        print("pt: ", pt)
+        print("pt_map: ", pt_map)
+        return pt_map[0], pt_map[1], pt_map[2]
 
-    def create_goal(self, x, y, w, z):
+    def create_goal(self, x, y, w=1.0, z=0.0):
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.pose.position.x = x
@@ -41,56 +58,125 @@ class NavigationClient():
         goal.target_pose.pose.orientation.z = z
         return goal
 
+    def to_pose_stamped(self, x, y):
+        pose = PoseStamped()
+        pose.header.frame_id = "map"
+        pose.header.stamp = rospy.Time.now()
+        pose.pose.position.x = x
+        pose.pose.position.y = y
+        pose.pose.orientation.w = 1.0
+        return pose
+
+    def compute_path_length(self, start, goal):
+        try:
+            resp = self.make_plan(start=start, goal=goal, tolerance=0.0)
+            path = resp.plan.poses
+            length = 0.0
+            for i in range(len(path) - 1):
+                dx = path[i+1].pose.position.x - path[i].pose.position.x
+                dy = path[i+1].pose.position.y - path[i].pose.position.y
+                length += math.sqrt(dx**2 + dy**2)
+            return length
+        except rospy.ServiceException as e:
+            rospy.logerr("Failed to call make_plan: %s" % e)
+            return float('inf')
+
     def pose_callback(self, msg):
         self.robot_x = msg.pose.pose.position.x
         self.robot_y = msg.pose.pose.position.y
 
-    def wp1_callback(self, msg):
-        rospy.loginfo("Received wp1")
-        self.received_waypoints[0] = msg
-        self.check_all_waypoints_received()
+    def object_callback(self, msg):
+        if self.route_planned:
+            return
 
-    def wp2_callback(self, msg):
-        rospy.loginfo("Received wp2")
-        self.received_waypoints[1] = msg
-        self.check_all_waypoints_received()
+        rospy.loginfo("Received delivery object info")
 
-    def wp3_callback(self, msg):
-        rospy.loginfo("Received wp3")
-        self.received_waypoints[2] = msg
-        self.check_all_waypoints_received()
+        objects = []
+        closest_pedestrian = None
+        min_ped_dist = float('inf')
 
-    def check_all_waypoints_received(self):
-        if all(wp is not None for wp in self.received_waypoints):
-            self.select_and_sort_goals()
+        # Transform and collect objects
+        for obj in msg.obstacle_list:
+            if obj.type == 2:
+                x, y, _ = self.transform_to_map(obj.position.x, obj.position.y)
+                obj.position.x = x
+                obj.position.y = y
+                objects.append(obj)
+            if len(objects) == 2:
+                break
 
-    def select_and_sort_goals(self):
-        waypoints_with_dist = []
-        for wp in self.received_waypoints:
-            dx = wp.position.x - self.robot_x
-            dy = wp.position.y - self.robot_y
-            dist = math.sqrt(dx**2 + dy**2)
-            waypoints_with_dist.append((dist, wp))
+        # Transform and find closest pedestrian
+        for ped in msg.pedestrian_list:
+            if ped.type == 0 and self.robot_x is not None:
+                x, y, _ = self.transform_to_map(ped.position.x, ped.position.y)
+                dx = x - self.robot_x
+                dy = y - self.robot_y
+                dist = math.sqrt(dx**2 + dy**2)
+                if dist < min_ped_dist:
+                    min_ped_dist = dist
+                    ped.position.x = x
+                    ped.position.y = y
+                    closest_pedestrian = ped
 
-        sorted_wps = sorted(waypoints_with_dist, key=lambda x: x[0])
+        if len(objects) < 2 or closest_pedestrian is None:
+            rospy.logwarn("delivery_objects 다 안들어옴 or delivery_goal 안들어옴.")
+            return
+
+        self.delivery_objects[0] = objects[0]
+        self.delivery_objects[1] = objects[1]
+        self.delivery_goal[0] = closest_pedestrian
+
+        self.route_planned = True
+        self.plan_optimal_route()
+
+    def plan_optimal_route(self):
+        obj1, obj2 = self.delivery_objects
+        ped = self.delivery_goal[0]
+
+        robot_pose = self.to_pose_stamped(self.robot_x, self.robot_y)
+        obj1_pose = self.to_pose_stamped(obj1.position.x, obj1.position.y)
+        obj2_pose = self.to_pose_stamped(obj2.position.x, obj2.position.y)
+        ped_pose = self.to_pose_stamped(ped.position.x, ped.position.y)
+
+        # Path A: robot → obj1 → obj2 → ped
+        d1 = self.compute_path_length(robot_pose, obj1_pose) + \
+             self.compute_path_length(obj1_pose, obj2_pose) + \
+             self.compute_path_length(obj2_pose, ped_pose)
+
+        # Path B: robot → obj2 → obj1 → ped
+        d2 = self.compute_path_length(robot_pose, obj2_pose) + \
+             self.compute_path_length(obj2_pose, obj1_pose) + \
+             self.compute_path_length(obj1_pose, ped_pose)
+
+        if d1 <= d2:
+            ordered = [obj1, obj2, ped]
+            rospy.loginfo("🚗 경로 선택: obj1 → obj2 → ped (길이 %.2f m)" % d1)
+        else:
+            ordered = [obj2, obj1, ped]
+            rospy.loginfo("🚗 경로 선택: obj2 → obj1 → ped (길이 %.2f m)" % d2)
+
         self.goal_list = [
-            self.create_goal(wp.position.x, wp.position.y, wp.orientation.w, wp.orientation.z)
-            for _, wp in sorted_wps
+            self.create_goal(o.position.x, o.position.y)
+            for o in ordered
         ]
-        self.goal_list.append(self.final_goal)
 
-        rospy.loginfo("All waypoints received and sorted. Sending first goal.")
+        # 마지막 고정 도착지점 추가
+        final_x, final_y, final_w,final_z = self.final_destination
+        self.goal_list.append(self.create_goal(final_x, final_y,final_w,final_z))
+        rospy.loginfo("📍 마지막 도착지점 추가됨: (%.2f, %.2f, %.2f, %.2f)" % (final_x, final_y, final_w,final_z))
+
         self.send_goal()
 
     def send_goal(self):
         if self.goal_index < len(self.goal_list):
             goal = self.goal_list[self.goal_index]
+            print("goal: ", goal)
             goal.target_pose.header.stamp = rospy.Time.now()
             self.client.send_goal(goal)
             self.goal_sent = True
-            rospy.loginfo(f"Sent goal {self.goal_index + 1}")
+            rospy.loginfo(f"Sent goal {self.goal_index + 1}/{len(self.goal_list)}")
         else:
-            rospy.loginfo("All goals completed.")
+            rospy.loginfo("🎉 All goals completed.")
             rospy.signal_shutdown("Navigation complete.")
 
     def check_distance(self, event):
@@ -103,15 +189,12 @@ class NavigationClient():
         distance = math.sqrt(dx**2 + dy**2)
 
         if distance < self.distance_threshold:
-            rospy.loginfo(f"Reached waypoint {self.goal_index + 1} (distance: {distance:.2f} m)")
+            rospy.loginfo(f"✅ Reached waypoint {self.goal_index + 1} (distance: {distance:.2f} m)")
             self.goal_index += 1
             self.goal_sent = False
             self.send_goal()
 
-def main():
-    rospy.init_node("dynamic_waypoint_navigation")
-    nav = NavigationClient()
+if __name__ == '__main__':
+    rospy.init_node('navigation_client')
+    NavigationClient()
     rospy.spin()
-
-if __name__ == "__main__":
-    main()

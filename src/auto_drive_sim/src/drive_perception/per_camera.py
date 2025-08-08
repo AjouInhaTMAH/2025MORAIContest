@@ -17,7 +17,7 @@ from std_msgs.msg import Float64
 import json
 from std_msgs.msg import String
 from utils import check_timer
-
+from time import *
 class PerCamera:
     def __init__(self):
         # ROS 노드 초기화
@@ -25,6 +25,7 @@ class PerCamera:
         self.init_pubSub()
         self.init_color()
         self.init_sliding()
+        self.init_current_lane()
         
     def init_pubSub(self):
         rospy.init_node("lane_dec")
@@ -59,7 +60,8 @@ class PerCamera:
         
         self.left_lanes =[]
         self.right_lanes =[]
-        
+    def init_current_lane(self):
+        self.current_lane     = "right"  
     def CB_cam_raw(self,msg):
         self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
     
@@ -237,10 +239,31 @@ class PerCamera:
         # print(self.right_lane_start < self.right_lane_end)
         return binary_img_color, self.left_lanes, self.right_lanes
 
+    def estimate_current_lane(self, warped_img):
+        # 안전가드: 이미지 없으면 기존값 유지
+        if not isinstance(warped_img, np.ndarray) or warped_img.size == 0:
+            return self.current_lane
+
+        img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
+        yellow_mask = cv2.inRange(img_hsv, np.array([15,128,0]),  np.array([40,255,255]))
+        white_mask  = cv2.inRange(img_hsv, np.array([0,0,192]),   np.array([179,64,255]))
+
+        h, w = yellow_mask.shape
+        left_yellow_count = cv2.countNonZero(yellow_mask[:, :w//2])
+        right_white_count = cv2.countNonZero(white_mask[:,  w//2:])
+        threshold = 300
+        if left_yellow_count > threshold and left_yellow_count > right_white_count:
+            return "left"
+        elif right_white_count > threshold:
+            return "right"
+        else:
+            return self.current_lane
+        
     def processing(self):
         while not rospy.is_shutdown():
             if self.img is None:
                 continue
+            # start1 = time()
             # img =msg
             self.img_y, self.img_x = self.img.shape[0:2]
             self.window_height = int(self.img_y / self.nwindows)
@@ -251,10 +274,10 @@ class PerCamera:
             stop_line, white_bin_img= self.extract_stop_line(white_bin_img)
             yellow_lane_img, yellow_left_lane, yellow_right_lane = self.sliding_window_adaptive(yellow_bin_img)
             white_lane_img, white_left_lane, white_right_lane = self.sliding_window_adaptive(white_bin_img)
+            self.current_lane = self.estimate_current_lane(warped_img)
             
-            self.dataset = [stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane]           
+            self.dataset = [stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
             #self.lane_cotrol.ctrl_decision(self.dataset)
-            self.dataset = [stop_line,yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane]
             json_str = json.dumps(self.dataset)
             self.pub.publish(json_str)
 
@@ -269,6 +292,7 @@ class PerCamera:
             cv2.imshow("lane_img",combined_img)
             cv2.imshow("self.img",self.img)
             cv2.waitKey(1)
+            # end = time()
             # print(f"time1 {end - start1} ")
             self.img = None
      
