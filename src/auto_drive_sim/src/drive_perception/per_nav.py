@@ -75,6 +75,7 @@ class PerCarNavigation:
         # print(f"time {end - start}")
         # zone 범위 벗어난 경우
         self.recent_zone = None
+        
     def processing(self):
         rate = rospy.Rate(40)
         while not rospy.is_shutdown():

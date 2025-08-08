@@ -7,26 +7,31 @@ import cv2
 import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
-from obstacle_avoid.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
-from std_msgs.msg import Int32
+from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
+from time import *
 
-class YOLOv5Detector:
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+class PerPerson:
     def __init__(self):
-        rospy.init_node("yolo_v5_detector", anonymous=True)
+        rospy.init_node("per_person_node", anonymous=True)
 
         # ✅ YOLOv5 모델 로드 (best.pt)
         #model_path = "/home/park/wego_ws/src/obstacle_avoid/yolo/best.pt"
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s", force_reload=False)
         self.model.conf = 0.5  # 신뢰도 기준 설정
-
+        self.img = None
         # ROS 설정
         self.bridge = CvBridge()
         self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.image_callback)
         self.pub = rospy.Publisher("/person_bbox", PersonBBox, queue_size=10)
 
     def image_callback(self, msg):
+        self.img = msg
+    def extract_dynamic_obs(self):
         try:
-            img = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            img = self.bridge.compressed_imgmsg_to_cv2(self.img, desired_encoding='bgr8')
         except Exception as e:
             rospy.logerr("❌ CV bridge error: %s", e)
             return
@@ -60,14 +65,15 @@ class YOLOv5Detector:
         cv2.imshow("YOLO Detection", img)
         cv2.waitKey(1)
 
-
-def main():
-    try:
-        detector = YOLOv5Detector()
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        pass
-
-
+    def processing(self):
+        rate = rospy.Rate(40)
+        while not rospy.is_shutdown():
+            if self.img is not None:
+                # start = time()
+                self.extract_dynamic_obs()
+                self.img = None
+                # print(f"time {time()-start}")
+            rate.sleep()
 if __name__ == '__main__':
-    main()
+    node = PerPerson()
+    node.processing()   # spin 대신 processing 돌기

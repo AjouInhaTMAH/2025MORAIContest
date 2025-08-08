@@ -11,7 +11,7 @@ if parent_dir not in sys.path:
 from time import *
 
 class PIDController:
-    def __init__(self, Kp=0.47, Ki=0.0, Kd=0.0527): # Kp = 1.0 Kd = 0.01
+    def __init__(self, Kp=0.6, Ki=0.0, Kd=0.0527): # Kp = 1.0 Kd = 0.01
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd

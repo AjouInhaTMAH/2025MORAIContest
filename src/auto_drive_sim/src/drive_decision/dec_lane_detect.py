@@ -104,8 +104,8 @@ class lane_detect:
         right_lane = white_right
         #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
             
-        # LANE_WIDTH_PIXELS = 260 # 적절히 조정
-        LANE_WIDTH_PIXELS = 270 # 적절히 조정
+        LANE_WIDTH_PIXELS = 260 # 적절히 조정
+        # LANE_WIDTH_PIXELS = 270 # 적절히 조정
 
         if stop_line != []:
             cross_threshold = 35
@@ -276,7 +276,7 @@ class lane_detect:
             return 1e4  # 계산 실패 시 직선으로 간주
     def pth01_get_steer_gain(self, curvature):
         A = 500.0  # 최대 gain
-        B = 0.0022
+        B = 0.003
         return max(1.0, A * np.exp(-B * curvature))
     def pth01_get_base_speed(self, curvature):
         min_speed = self.min_speed
@@ -316,18 +316,6 @@ class lane_detect:
         pid_output = self.pid.compute(steer_error)
         steer = steer_gain*pid_output + 0.5
         steer = max(self.min_steer, min(self.max_steer, steer))  # 스티어링 제한
-        
-        # # 4. 예측 조향 업데이트 (항상 수행)
-        # predicted_steer = self.predictor.update(
-        #     steer=steer,
-        #     left_detected=left_detected,
-        #     right_detected=right_detected
-        # )
-
-        # # 5. 한쪽이라도 인식 안 됐을 때 → 예측 조향값으로 대체
-        # if not left_detected or not right_detected:
-        #     steer = predicted_steer
-        #     #rospy.loginfo(f"[Predictive] Using predicted steer: {steer:.3f}")    
 
         deviation = abs(steer-0.5)
         speed = max(self.min_speed, int(base_speed - deviation * (base_speed - self.min_speed)))
@@ -408,7 +396,6 @@ class lane_detect:
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
         rospy.loginfo(f"[steer_gain] value: {steer_gain:.2f}")
         rospy.loginfo(f"[stop_flag_num] value: {self.stop_flag_num:.2f}")
-
 
     def stop_time(self,time = 2):
         self.publish_move(0, 0.5)
