@@ -1,0 +1,6 @@
+<launch>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+    <node pkg="rospy_rosbridge_connector" type="ros_websocket_bridge.py" name="ros_websocket_bridge_mo" output="screen" />
+    <node pkg="rospy_rosbridge_connector" type="publish_clock.py" name="publish_clock" output="screen" />
+    <node pkg="rospy_rosbridge_connector" type="Object_topic.py" name="object_topic_processor" output="screen" />
+</launch> 
