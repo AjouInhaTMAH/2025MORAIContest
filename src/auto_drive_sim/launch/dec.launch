@@ -1,3 +1,3 @@
 <launch>
-  <node pkg="auto_drive_sim" type="dec_mission_all.py" name="dec_mission_all_node" output="screen" />
+  <node pkg="auto_drive_sim" type="dec_main.py" name="dec_main_node" output="screen" />
 </launch>
