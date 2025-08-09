@@ -1,8 +1,8 @@
 <launch>
   <node pkg="auto_drive_sim" type="per_camera.py" name="per_camera_node" output="screen" />
-  <node pkg="auto_drive_sim" type="per_lidar.py" name="per_lidar_node" output="screen" />
   <node pkg="auto_drive_sim" type="per_DeadReckoning_gps.py" name="dead_reckoning_node" output="screen" />
+  <node pkg="auto_drive_sim" type="per_lidar.py" name="per_lidar_node" output="screen" />
   <node pkg="auto_drive_sim" type="per_nav.py" name="per_car_nav_node" output="screen" />
-  <node pkg="auto_drive_sim" type="per_traffic.py" name="per_traffic_node" output="screen" />
   <node pkg="auto_drive_sim" type="per_person.py" name="per_person_node" output="screen" />
+  <node pkg="auto_drive_sim" type="per_traffic.py" name="per_traffic_node" output="screen" />
 </launch>

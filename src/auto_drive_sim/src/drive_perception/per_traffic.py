@@ -16,21 +16,24 @@ import numpy as np
 from std_msgs.msg import Float64, Bool, String
 from morai_msgs.msg import GetTrafficLightStatus
 import json
-from utils import check_timer
+from utills import check_timer
 
 class PerTraffic:
     def __init__(self):
         print(f"PerTraffic start")
         rospy.init_node('per_traffic_node')
-        self.signal = 0
-        self.prev_signal = 0
-        self.traffic_msg = None
         self.init_pubSub()
+        self.init_traffic()
         
     def init_pubSub(self):
         rospy.Subscriber("/GetTrafficLightStatus", GetTrafficLightStatus, self.CB_traffic_raw)
         self.pub_is_go_traffic = rospy.Publisher('/is_to_go_traffic', Bool, queue_size=1)
-
+    def init_traffic(self):
+        self.signal = 0
+        self.prev_signal = 0
+        self.traffic_msg = None
+    def init_timer(self):
+        self.check_timer = check_timer.CheckTimer("PerTraffic")
     def CB_traffic_raw(self, msg):
         self.traffic_msg = msg
         if self.traffic_msg.trafficLightIndex == "SN000005":
@@ -38,7 +41,7 @@ class PerTraffic:
             if self.prev_signal != self.signal:
                 self.prev_signal = self.signal
                 
-    def check_and_publish_signal(self):
+    def pub_check_traffic(self):
         is_go = self.signal in [16, 33]
         self.pub_is_go_traffic.publish(Bool(data=is_go))
 
@@ -46,7 +49,7 @@ class PerTraffic:
         rate = rospy.Rate(40)  # 40Hz 루프
         while not rospy.is_shutdown():
             # 조건 체크 및 publish
-            self.check_and_publish_signal()
+            self.pub_check_traffic()
             rate.sleep()
             
 if __name__ == '__main__':

@@ -16,21 +16,18 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from time import *
-import rospy
-from std_msgs.msg import Float64
-from std_msgs.msg import Int32
-from std_msgs.msg import String
-from geometry_msgs.msg import PoseWithCovarianceStamped
-from PIDController import PIDController
-from tf.transformations import euler_from_quaternion
-from utils import check_timer
-import subprocess
-import json
-import math
-import numpy as np
-from morai_msgs.msg import GetTrafficLightStatus
+from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
 
-class lane_detect:
-    def __init__(self):
-        pass
-    
+class DecLaneMode_003:
+    def __init__(self,DecLaneDistance):
+        self.init_processing(DecLaneDistance)
+        
+    def init_processing(self,DecLaneDistance:dec_lane_distance.DecLaneDistance):
+        self.DecLaneDistance = DecLaneDistance
+    def handle_zone_goal_01(self):
+        self.DecLaneDistance.chose_center_right()
+        self.DecLaneDistance.ctrl_moveByLine_right()
+        
+        # mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
+        # self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
+        
