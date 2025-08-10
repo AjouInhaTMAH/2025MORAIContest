@@ -4,5 +4,4 @@ devel/
 __pycache__
 *.png
 test_img
-lane
 tester
