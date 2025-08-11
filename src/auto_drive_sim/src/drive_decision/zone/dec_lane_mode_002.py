@@ -38,8 +38,8 @@ class DecLaneMode_002:
         sleep(time)
     def handle_zone_mission5(self,stop_line):
         if self.pass_mission5_flag:
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            self.DecLaneDistance.chose_center_right_yellow_lane()
+            self.DecLaneDistance.ctrl_moveByLine()
         elif self.stop_mission5_flag and self.is_to_go_traffic:
             print(f"movemove")
             steer = 0.5
@@ -64,5 +64,5 @@ class DecLaneMode_002:
             self.stop_mission5_flag =True
             self.stop_time(0)
         else:
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            self.DecLaneDistance.chose_center_right_yellow_lane()
+            self.DecLaneDistance.ctrl_moveByLine()

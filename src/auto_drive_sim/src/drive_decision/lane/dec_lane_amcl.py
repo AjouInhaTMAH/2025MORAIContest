@@ -38,7 +38,7 @@ class DecLaneAmcl:
         self.yaw = 0
         self.cross_goal_x = None
         self.cross_goal_y = None
-        
+        self.speed = 400
     def set_currentPose_info(self,x,y,yaw):
         self.x ,self.y, self.yaw = x,y,yaw
 
@@ -70,23 +70,23 @@ class DecLaneAmcl:
         print(f"벡터 간 부호 있는 회전 각도: {angle_deg:.2f}°")
         return angle_deg
 
-    def compute_drive_command(self,x, y, w, tx, ty):
+    def compute_drive_command(self,x, y, w, tx, ty, dis_tarket=0.5,speed= 400):
         # 거리 계산
         distance = math.hypot(tx - x, ty - y)
-
+        self.speed = speed
         # 도달 조건 (선택적으로 함수 외부에서 사용 가능)
-        reached = distance < 0.5
+        reached = distance < dis_tarket
 
         # 조향 계산
         angle_diff_deg = self.angle_to_target(x, y, w, tx, ty)
         print(f"angle_diff_deg {angle_diff_deg}")
         # [-90, 90]로 제한
-        angle_diff_deg = max(min(angle_diff_deg, 90), -90)
+        angle_diff_deg = max(min(angle_diff_deg, 30), -30)
 
         # -90~90 → -19.5~19.5로 선형 맵핑
-        steer = (angle_diff_deg / 90) * 19.5
+        steer = (angle_diff_deg / 30) * 19.5
         
-        speed = 400  # 고정 속도
+        speed = self.speed  # 고정 속도
         return speed, -steer, reached
     
     def drvie_amcl(self):
@@ -108,4 +108,24 @@ class DecLaneAmcl:
         print(f"speed, steer {speed} {steer}")
         self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
         return False
-    
+
+    def drvie_amcl2target_rotary(self,tx,ty):
+        # 현재 위치
+        x = self.x
+        y = self.y
+        w = self.yaw
+
+        tx, ty = tx, ty
+        print(f"current : {self.x}, {self.y}")
+        print(f"tx,ty : {tx}, {ty}")
+        print(f"tx,ty : {tx}, {ty}")
+        print(f"tx,ty : {tx}, {ty}")
+        speed, steer, reached = self.compute_drive_command(x, y, w, tx, ty,0.5, 1200)
+        # print(f"reached {reached}")
+        if reached :
+            print(f"reached {reached}")
+            return True
+        steer = ((steer / 19.5 + 1)) /2
+        print(f"speed, steer {speed} {steer}")
+        self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
+        return False

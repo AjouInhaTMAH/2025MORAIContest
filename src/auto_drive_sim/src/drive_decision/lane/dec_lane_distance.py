@@ -33,7 +33,6 @@ class DecLaneDistance:
         
     def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo):
         self.CtrlMotorServo = CtrlMotorServo
-        
     def init_both_pth(self):
         self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
         self.center_index = 0
@@ -41,17 +40,16 @@ class DecLaneDistance:
         self.steer_per_pixel = 2 / 640  # 수정 가능
         self.max_steer = 1 #19.5
         self.min_steer = 0 #-19.5
-        
     def init_pth02(self):
-        self.right_lane_delta = 134
-        self.left_lane_delta = 163 + 20
+        self.left_white_lane__left_follow_delta = 20
+        self.left_lane_delta = 155
+        self.right_lane_delta = 135
+        self.left_white_lane__left_lane_delta = 155 -self.left_white_lane__left_follow_delta
+        self.left_white_lane__right_lane_delta = 135 - self.left_white_lane__left_follow_delta
         self.total_steer = self.max_steer - self.min_steer
-
     
     def set_camera_info(self,stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane):
         self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane
-
-
         
     def normalize_angle(self, angle):
         # [-pi, pi] 범위로 정규화
@@ -61,7 +59,7 @@ class DecLaneDistance:
             angle += 2 * math.pi
         return angle
 
-    def chose_center_right(self):
+    def chose_center_right_yellow_lane(self):
         stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
         left_lane = yellow_left
         right_lane = white_right
@@ -74,8 +72,20 @@ class DecLaneDistance:
         else:
             self.center_index = 320
         print(f"self.center_index {self.center_index}")
-        
-    def ctrl_moveByLine_right(self):
+    def chose_center_left_white_lane(self):
+        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
+        left_lane = white_left
+        right_lane = white_right
+
+        if left_lane:
+            self.center_index = (left_lane[0][0] + left_lane[-1][0]) // 2 + self.left_white_lane__left_lane_delta
+        elif right_lane:
+            self.center_index = (right_lane[0][0] + right_lane[-1][0]) // 2  - self.left_white_lane__right_lane_delta
+        else:
+            self.center_index = 320
+        print(f"self.center_index {self.center_index}")
+
+    def ctrl_moveByLine(self):
         # self.center_pixel = 320
         # self.steer_per_pixel = 2 / 640  # 수정 가능
         # steer = (steer + 1) / 2.0
@@ -84,28 +94,11 @@ class DecLaneDistance:
         print(f"[INFO] pixel_error: {pixel_error:.2f} deg")
         steer = pixel_error * self.steer_per_pixel * self.total_steer * 2 + 0.5
         print(f"[INFO] pixel_error: {steer:.2f} deg")
-        # steer = self.pid.compute(pixel_error)
         # 클리핑 (조향각 범위 제한)
         steer = max(min(steer, self.max_steer), self.min_steer)
-        # steer_ratio = abs(steer) / self.max_steer  # 0 ~ 1
-        # speed = self.max_speed * (1 - steer_ratio)  # 회전 클수록 속도 감소
-        # speed = max(speed, self.min_speed)
         speed = 400
         # 5. 결과 저장 혹은 publish
         self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
         print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")
         
-    def chose_center_left(self):
-        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
-        left_lane = white_left
-        right_lane = white_right
-        self.right_lane_delta = 134
-        self.left_lane_delta = 163 - 10
-        if left_lane:
-            self.center_index = (left_lane[0][0] + left_lane[-1][0]) // 2 + self.left_lane_delta
-        elif right_lane:
-            self.center_index = right_lane[0][0] + self.left_lane_delta
-        else:
-            self.center_index = 320
-        print(f"self.center_index {self.center_index}")
 

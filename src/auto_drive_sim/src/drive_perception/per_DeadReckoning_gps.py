@@ -39,6 +39,7 @@ class DeadReckoningNode:
         self.vel = 0.0
         self.last_time = rospy.Time.now()
         self.initialized = False
+        self.rpm = 0
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("DeadReckoningNode")
         
@@ -56,12 +57,9 @@ class DeadReckoningNode:
         _, _, yaw_rad = euler_from_quaternion([q.x, q.y, q.z, q.w])
         self.imu_yaw = math.degrees(yaw_rad)
     def CB_vel_raw(self, msg):
-        if not self.initialized:
-            return
-
+        self.rpm = msg.state.speed
         # self.check_time.start()
-        self.guess_coordinate(msg)
-        self.pub_cur_pose_info()
+
         # rospy.loginfo(f"[DR] x={self.x:.2f}, y={self.y:.2f}, yaw={self.yaw:.1f} vel={self.vel:.2f}")
         # self.check_time.check()
 
@@ -76,13 +74,12 @@ class DeadReckoningNode:
         msg_str = json.dumps(msg_dict)
         self.cur_pose_pub.publish(msg_str)
         
-    def guess_coordinate(self,msg):
+    def guess_coordinate(self):
         now = rospy.Time.now()
         dt = (now - self.last_time).to_sec()
         self.last_time = now
 
-        rpm = msg.state.speed
-        self.vel = rpm * 0.0013577451514397 * 1000 / (2 * math.pi * 60)
+        self.vel = self.rpm * 0.0013577451514397 * 1000 / (2 * math.pi * 60)
 
         yaw_rad = math.radians(self.imu_yaw)
         vx = self.vel * math.cos(yaw_rad)
@@ -96,8 +93,12 @@ class DeadReckoningNode:
         self.yaw = self.imu_yaw
      
     def processing(self):
-        rate = rospy.Rate(50)
+        rate = rospy.Rate(60)
         while not rospy.is_shutdown():
+            if not self.initialized:
+                continue
+            self.guess_coordinate()
+            self.pub_cur_pose_info()
             rate.sleep()
             
 if __name__ == '__main__':

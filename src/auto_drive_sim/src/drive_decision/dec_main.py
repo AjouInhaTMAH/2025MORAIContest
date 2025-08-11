@@ -67,7 +67,7 @@ class DecMain:
         self.lane_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.lane_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.lane_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.lane_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
     def init_msg(self):
         self.is_to_go_traffic = False
@@ -85,7 +85,7 @@ class DecMain:
         self.DecLaneDistance = dec_lane_distance.DecLaneDistance(self.CtrlMotorServo)
         
         self.DecLaneMode_000 = dec_lane_mode_000.DecLaneMode_000(self.CtrlMotorServo,self.DecLaneCurvature)
-        self.DecLaneMode_001 = dec_lane_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,self.DecLaneDistance)
+        self.DecLaneMode_001 = dec_lane_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,self.DecLaneDistance, self.DecLaneAmcl)
         self.DecLaneMode_002 = dec_lane_mode_002.DecLaneMode_002(self.CtrlMotorServo,self.DecLaneDistance)
         self.DecLaneMode_003 = dec_lane_mode_003.DecLaneMode_003(self.DecLaneDistance)
         self.DecLaneMode_004 = dec_lane_mode_004.DecLaneMode_004(self.DecLaneAmcl,self.DecLaneDistance,)
@@ -110,7 +110,6 @@ class DecMain:
             self.y = data.get("y")
             self.yaw = data.get("yaw")
             self.vel = data.get("vel")
-            self.DecLaneAmcl.set_currentPose_info(self.x, self.y, self.yaw)
         except json.JSONDecodeError as e:
             rospy.logwarn(f"JSON Decode Error: {e}")
         except Exception as e:
@@ -168,7 +167,10 @@ class DecMain:
                     self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
                 elif self.lane_mode == 1:
                     print(f"mode {self.lane_mode}")
+                    self.check_timer.start()
+                    self.DecLaneAmcl.set_currentPose_info(self.x, self.y, self.yaw)
                     self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
+                    self.check_timer.check()
                 elif self.lane_mode == 2:
                     print(f"mode {self.lane_mode}")
                     self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
@@ -177,6 +179,7 @@ class DecMain:
                     self.DecLaneMode_003.handle_zone_goal_01()
                 elif self.lane_mode == 4:
                     print(f"mode {self.lane_mode}")
+                    self.DecLaneAmcl.set_currentPose_info(self.x, self.y, self.yaw)
                     self.DecLaneMode_004.handle_zone_goal_02(self.stop_line)
                 else:
                     print(f"Wrong lane_mode {self.lane_mode}")
