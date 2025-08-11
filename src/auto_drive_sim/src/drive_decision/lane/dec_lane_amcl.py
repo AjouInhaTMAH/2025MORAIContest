@@ -109,23 +109,3 @@ class DecLaneAmcl:
         self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
         return False
 
-    def drvie_amcl2target_rotary(self,tx,ty):
-        # 현재 위치
-        x = self.x
-        y = self.y
-        w = self.yaw
-
-        tx, ty = tx, ty
-        print(f"current : {self.x}, {self.y}")
-        print(f"tx,ty : {tx}, {ty}")
-        print(f"tx,ty : {tx}, {ty}")
-        print(f"tx,ty : {tx}, {ty}")
-        speed, steer, reached = self.compute_drive_command(x, y, w, tx, ty,0.5, 1200)
-        # print(f"reached {reached}")
-        if reached :
-            print(f"reached {reached}")
-            return True
-        steer = ((steer / 19.5 + 1)) /2
-        print(f"speed, steer {speed} {steer}")
-        self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-        return False

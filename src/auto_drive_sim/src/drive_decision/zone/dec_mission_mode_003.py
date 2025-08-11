@@ -25,8 +25,8 @@ class DecLaneMode_003:
     def init_processing(self,DecLaneDistance:dec_lane_distance.DecLaneDistance):
         self.DecLaneDistance = DecLaneDistance
     def handle_zone_goal_01(self):
-        self.DecLaneDistance.chose_center_right()
-        self.DecLaneDistance.ctrl_moveByLine_right()
+        self.DecLaneDistance.chose_center_right_yellow_lane()
+        self.DecLaneDistance.ctrl_moveByLine()
         
         # mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
         # self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)

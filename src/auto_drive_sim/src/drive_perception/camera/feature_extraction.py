@@ -22,10 +22,8 @@ class LaneFeatureExtractor:
         # y축 방향으로 sum → 수평선은 y축 기준으로 sum값이 커짐
         self.img_y = img_y
         horizontal_sum = np.sum(white_bin_img, axis=1) // 255  # shape: (height,)
-        down_hist = horizontal_sum[self.img_y//4*2:]
-        
+        stop_line_indices = np.where(horizontal_sum > threshold)[0]
         # threshold 이상인 위치 찾기
-        stop_line_indices = np.where(down_hist > threshold)[0] + self.img_y//4*2
         if len(stop_line_indices) > 0:
             min_y = stop_line_indices[0]
             max_y = stop_line_indices[-1]
@@ -38,34 +36,34 @@ class LaneFeatureExtractor:
             return [], white_bin_img
 
     def estimate_current_lane(self, warped_img):
-            img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
+        img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
 
-            yellow_lower = np.array([15, 180, 100])  # S=180, V=100으로 올림
-            yellow_upper = np.array([40,255,255])
-            yellow_mask  = cv2.inRange(img_hsv, yellow_lower, yellow_upper)
+        yellow_lower = np.array([18, 140, 120]) 
+        yellow_upper = np.array([34,255,255])
+        yellow_mask  = cv2.inRange(img_hsv, yellow_lower, yellow_upper)
 
-            white_lower = np.array([0,0,192])
-            white_upper = np.array([179,64,255])
-            white_mask  = cv2.inRange(img_hsv, white_lower, white_upper)
+        white_lower = np.array([0,0,192])
+        white_upper = np.array([179,64,255])
+        white_mask  = cv2.inRange(img_hsv, white_lower, white_upper)
 
-            height, width = yellow_mask.shape
-            left_roi  = yellow_mask[:, :width//2]
-            right_roi = white_mask[:,  width//2:]
+        height, width = yellow_mask.shape
+        left_roi  = yellow_mask[:, :width//2]
+        right_roi = white_mask[:,  width//2:]
 
-            left_yellow_count  = cv2.countNonZero(left_roi)
-            right_white_count  = cv2.countNonZero(right_roi)
+        left_yellow_count  = cv2.countNonZero(left_roi)
+        right_white_count  = cv2.countNonZero(right_roi)
 
-            #print(f"🟨 left yellow: {left_yellow_count}, ⬜ right white: {right_white_count}")
+        #print(f"🟨 left yellow: {left_yellow_count}, ⬜ right white: {right_white_count}")
 
 
-            # cv2.imshow("Yellow Mask", yellow_mask)
-            # cv2.imshow("White Mask", white_mask)
-            # cv2.waitKey(1)
+        # cv2.imshow("Yellow Mask", yellow_mask)
+        # cv2.imshow("White Mask", white_mask)
+        # cv2.waitKey(1)
 
-            threshold = 300
-            if left_yellow_count > threshold and left_yellow_count > right_white_count:
-                return "left"
-            elif right_white_count > threshold:
-                return "right"
-            else:
-                return self.current_lane  # 변화 없으면 유지
+        threshold = 100
+        if left_yellow_count > threshold and left_yellow_count > right_white_count:
+            return "left"
+        elif right_white_count > threshold:
+            return "right"
+        else:
+            return self.current_lane  # 변화 없으면 유지

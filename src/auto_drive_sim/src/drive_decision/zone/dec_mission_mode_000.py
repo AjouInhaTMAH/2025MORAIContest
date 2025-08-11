@@ -35,7 +35,7 @@ class DecLaneMode_000:
     
     def init_mission2_3(self):
         self.front_near_obstacle       = False
-        self.current_lane     = "right"
+        self.lane_mode     = "right"
         self.avoid_side       = None
         self.in_avoid_mode    = False
         self.dynamic_obs_flag = False
@@ -44,8 +44,8 @@ class DecLaneMode_000:
         self.thick_plan = {
             1: {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
         }
-    def set_current_lane(self, lane):
-        self.current_lane = lane
+    def set_lane_mode(self, lane):
+        self.lane_mode = lane
     def set_dynamic_obs_flag(self,flag):
         self.dynamic_obs_flag = flag
         
@@ -62,9 +62,9 @@ class DecLaneMode_000:
             
         elif self.front_near_obstacle or self.in_avoid_mode:
             # print(f"lidar flag {self.front_near_obstacle}")R
-            print(f"현재 차선은 {self.current_lane}")
+            print(f"현재 차선은 {self.lane_mode}")
             if not self.in_avoid_mode:
-                self.avoid_side    = "left" if self.current_lane == "right" else "right"
+                self.avoid_side    = "left" if self.lane_mode == "right" else "right"
                 print(f"가야할 차선은 {self.avoid_side}")
                 self.in_avoid_mode = True
                 self.obs_flag      = True
@@ -77,17 +77,22 @@ class DecLaneMode_000:
                 self.last_time = now
 
             if   self.waypoint_idx == 0:
-                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 0
-                self.sleep_duration = 1.5
+                steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 1400
+                self.sleep_duration = 0.1
+
             elif self.waypoint_idx == 1:
                 steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 800
-                self.sleep_duration = 0.6
+                self.sleep_duration = 0.55
+
             elif self.waypoint_idx == 2:
-                steer, speed = (0.8 if self.avoid_side == "left" else 0.2), 800
-                self.sleep_duration = 0.8
+                steer, speed = (0.9 if self.avoid_side == "left" else 0.1), 1200
+                # self.sleep_duration = 0.9
+                self.sleep_duration = 0.55
+
             elif self.waypoint_idx == 3:
-                steer, speed = 0.5, 800
+                steer, speed = 0.5, 600
                 self.sleep_duration = 0.5
+
             elif self.waypoint_idx == 4:
                 self.in_avoid_mode = False
                 self.front_near_obstacle = False
@@ -103,6 +108,8 @@ class DecLaneMode_000:
                 self.waypoint_idx = -1
                 steer, speed = 0.5, 0
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
+            rospy.sleep(self.sleep_duration)
+            
         elif stop_line != [] and stop_line[MAX_Y] > 440:
         # {"type":"steer_fixed", "steer":0.5, "speed":800, "duration":1.5},
             steer = float(self.thick_plan[1]["steer"])
@@ -113,7 +120,8 @@ class DecLaneMode_000:
             print(f"self.count_stopsline {self.count_stopsline}")
             print(f"self.count_stopsline {self.count_stopsline}")
             print(f"self.count_stopsline {self.count_stopsline}")
-            sleep(duration)
+            rospy.sleep(duration)
         else:
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
             self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+

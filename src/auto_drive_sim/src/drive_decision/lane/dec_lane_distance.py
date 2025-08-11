@@ -72,6 +72,21 @@ class DecLaneDistance:
         else:
             self.center_index = 320
         print(f"self.center_index {self.center_index}")
+        
+    def chose_center_right_white_lane(self):
+        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
+        left_lane = white_left
+        right_lane = white_right
+        self.right_lane_delta = 134
+        self.left_lane_delta = 163 + 20
+        if white_right:
+            self.center_index = right_lane[0][0] - self.right_lane_delta
+        elif left_lane:
+            self.center_index = left_lane[0][0] - self.right_lane_delta
+        else:
+            self.center_index = 320
+        print(f"self.center_index {self.center_index}")
+        
     def chose_center_left_white_lane(self):
         stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
         left_lane = white_left
@@ -97,6 +112,7 @@ class DecLaneDistance:
         # 클리핑 (조향각 범위 제한)
         steer = max(min(steer, self.max_steer), self.min_steer)
         speed = 400
+        # speed = 1200
         # 5. 결과 저장 혹은 publish
         self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
         print(f"[INFO] steer: {steer:.2f} deg, speed: {speed:.2f} km/h")

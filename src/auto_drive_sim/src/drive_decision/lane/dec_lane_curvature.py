@@ -252,7 +252,7 @@ class DecLaneCurvature:
     def pth01_ctrl_move(self, mode, left_lane=None, right_lane=None):
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error*self.steer_per_pixel
-        print(f"left_lane:{left_lane} / right_lane:{right_lane}")
+        # print(f"left_lane:{left_lane} / right_lane:{right_lane}")
         left_detected = bool(left_lane)
         right_detected = bool(right_lane)
         
@@ -281,9 +281,9 @@ class DecLaneCurvature:
 
         self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
         
-        rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
-        rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
-        rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
+        # rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
+        # rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
+        # rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
 
     def pth01_get_steer_gain_right(self, curvature):
         A = 20.0  # 최대 gain

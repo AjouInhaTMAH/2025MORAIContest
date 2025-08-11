@@ -24,7 +24,7 @@ class PerCarNavigation:
         self.init_timer()
     def init_pubSub(self):
         rospy.Subscriber('/cur_pose', String, self.CB_currentPose_info)
-        self.zone_pub = rospy.Publisher('/lane_mode', Int32, queue_size=1)
+        self.zone_pub = rospy.Publisher('/mission_mode', Int32, queue_size=1)
     def init_zone(self):
        # zone 좌표 정의 (map 좌표 기준 -> /amcl_pose를 morai에서 실제로 뽑아옴, )
         self.zones = {
@@ -54,7 +54,7 @@ class PerCarNavigation:
         except Exception as e:
             rospy.logerr(f"Unexpected error: {e}")
     
-    def pub_lane_mode_info(self,zone_id):
+    def pub_mission_mode_info(self,zone_id):
         self.zone_pub.publish(Int32(zone_id))
         
     def check_zones(self):
@@ -65,7 +65,7 @@ class PerCarNavigation:
             if dist < self.zone_threshold:
                 # if self.recent_zone != zone_id:
                 rospy.loginfo(f"📍 현재 위치 zone {zone_id} 감지됨 (x={x:.2f}, y={y:.2f})")
-                self.pub_lane_mode_info(zone_id)
+                self.pub_mission_mode_info(zone_id)
                 self.recent_zone = zone_id
                 return
         # zone 범위 벗어난 경우

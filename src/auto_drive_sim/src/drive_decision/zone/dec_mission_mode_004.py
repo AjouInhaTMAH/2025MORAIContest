@@ -32,8 +32,8 @@ class DecLaneMode_004:
     def handle_zone_goal_02(self,stop_line):
         if self.go_goal_stop_end_flag:
             print(f"4!")
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            self.DecLaneDistance.chose_center_right_white_lane()
+            self.DecLaneDistance.ctrl_moveByLine()
         elif self.go_goal_stop_flag:
             self.go_goal_stop_end_flag = self.DecLaneAmcl.drvie_amcl()
         elif stop_line != [] and stop_line[MAX_Y] > 320:
@@ -41,5 +41,5 @@ class DecLaneMode_004:
             self.go_goal_stop_flag = True
         else:
             print(f"1!")
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            self.DecLaneDistance.chose_center_right_white_lane()
+            self.DecLaneDistance.ctrl_moveByLine()
