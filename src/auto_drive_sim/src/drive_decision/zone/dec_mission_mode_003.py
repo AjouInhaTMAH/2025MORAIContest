@@ -16,18 +16,35 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from time import *
+from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
-
+import rospy
+MAX_Y = 1
 class DecLaneMode_003:
-    def __init__(self):
-        self.init_processing()
-        
-    def init_processing(self):
+    def __init__(self,CtrlMotorServo, DecLaneCurvature):
+        self.init_goal()
+        self.init_processing(CtrlMotorServo,DecLaneCurvature)
+    def init_goal(self):
         pass
-    def handle_zone_goal_01(self):
-        self.DecLaneDistance.chose_center_right_yellow_lane()
-        self.DecLaneDistance.ctrl_moveByLine()
+    def init_processing(self, CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
+                        DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
+        self.CtrlMotorServo = CtrlMotorServo
+        self.DecLaneCurvature = DecLaneCurvature
+    def set_camera_info(self,stop_line):
+        self.stop_line = stop_line
+
         
-        # mode, left_lane, right_lane = self.lane_detect.pth01_ctrl_decision_right()
-        # self.lane_detect.pth01_ctrl_move_right(mode, left_lane, right_lane)
+    def handle_zone_goal(self,stop_line):
+        # 홀드가 아니면 의사결정
+        mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+        stop_flag = self.stop_line
         
+        # if mode == "traffic":
+        #     steer, speed = self.traffic_control.traffic_action(stop_flag)  # 인자 필수
+        #     self.publish(speed, steer)
+        #     return
+
+        
+        
+        # 그 외에는 정상 제어
+        self.DecLaneCurvature.ctrl_move_goal(mode, left_lane, right_lane, stop_flag)

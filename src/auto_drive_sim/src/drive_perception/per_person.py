@@ -37,6 +37,7 @@ class PerPerson:
         self.bridge = CvBridge()
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s", force_reload=False)
         self.model.conf = 0.5  # 신뢰도 기준 설정
+        self.model.to('cuda').eval().half()
         self.img = None
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerPerson")
@@ -69,7 +70,9 @@ class PerPerson:
             rospy.logerr("❌ CV bridge error: %s", e)
             return
 
+        # self.check_timer.start()
         results = self.model(img)
+        # self.check_timer.check()
         detections = results.pandas().xyxy[0]  # pandas DataFrame
         self.detect_person_result = False
         for _, row in detections.iterrows():
@@ -94,7 +97,7 @@ class PerPerson:
         cv2.waitKey(1)
 
     def processing(self):
-        rate = rospy.Rate(40)
+        rate = rospy.Rate(60)
         while not rospy.is_shutdown():
             if self.img is not None:
                 # self.check_timer.start()

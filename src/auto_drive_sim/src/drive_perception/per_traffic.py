@@ -46,7 +46,7 @@ class PerTraffic:
         self.pub_is_go_traffic.publish(Bool(data=is_go))
 
     def processing(self):
-        rate = rospy.Rate(40)  # 40Hz 루프
+        rate = rospy.Rate(50)  # 40Hz 루프
         while not rospy.is_shutdown():
             # 조건 체크 및 publish
             self.pub_check_traffic()

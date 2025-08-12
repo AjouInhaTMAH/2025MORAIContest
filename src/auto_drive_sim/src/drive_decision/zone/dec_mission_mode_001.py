@@ -67,14 +67,14 @@ class DecLaneMode_001:
     def inter_rotary(self):
         start_time = rospy.Time.now().to_sec()
         rate = rospy.Rate(80)  # 50Hz 루프, 콜백 계속 처리 가능
-        total_time = 0.69
+        total_time = 0.59
         while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
             now = rospy.Time.now().to_sec()
             if not self.not_obs_now and now - start_time >= 0.25:
                 print(f"stop rotary")
                 self.CtrlMotorServo.pub_move_motor_servo(2400, 1)
                 total_time = 0.64
-            elif self.not_obs_now and now - start_time >= 0.3:
+            elif self.not_obs_now and now - start_time >= 0.1:
                 print(f"nono stop rotary")
                 self.CtrlMotorServo.pub_move_motor_servo(2400, 1)
             elif now - start_time >= 0.0:
@@ -86,8 +86,8 @@ class DecLaneMode_001:
         # self.mi4_in_flag = True
         if self.mi4_out_flag:
             print(f"5")
-            mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
-            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
+            # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
         elif self.mi4_in_flag:
             self.stop_time(10)
             self.out_rotray()
@@ -108,17 +108,8 @@ class DecLaneMode_001:
             self.stop_time(0)
         else:
             print(f"1")
-            self.DecLaneDistance.chose_center_right_white_lane()
-            self.DecLaneDistance.ctrl_moveByLine()
-            # self.DecLaneDistance.chose_center_left_white_lane()
-            # self.DecLaneDistance.ctrl_moveByLine()   
-            # start = time()
-            # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
-            # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
-            # time2 = time()
-            # print(f"111 {time() - start}")
-            # print(f"??? {time() - time2}")
-            # print(f"222 {time() - start}")
+            mode, left_lane, right_lane = self.DecLaneCurvature.ctrl_decision_mission1()
+            self.DecLaneCurvature.ctrl_move_mission1(mode, left_lane, right_lane)
         # print(f"??? {time() - start}")
     def check_obstacle_rotary(self):
         if self.left_obstacle or self.front_obstacle or self.right_obstacle:

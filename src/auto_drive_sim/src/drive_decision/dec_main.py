@@ -30,7 +30,6 @@ from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confiden
 from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
 from drive_decision.zone import dec_mission_mode_000, dec_mission_mode_001, dec_mission_mode_002, dec_mission_mode_003
-from drive_decision.zone import dec_mission_mode_004
 import cv2
 
 MIN_Y = 0
@@ -64,12 +63,10 @@ class DecMain:
         rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs)
 
         rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info)
-        rospy.Subscriber('/cur_pose', String, self.CB_currentPose_info)
     def init_mission_mode(self):
-        self.mission_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
     def init_msg(self):
         self.is_to_go_traffic = False
@@ -85,9 +82,8 @@ class DecMain:
         self.DecLaneCurvature = dec_lane_curvature.DecLaneCurvature(self.CtrlMotorServo)
         self.DecLaneMode_000 = dec_mission_mode_000.DecLaneMode_000(self.CtrlMotorServo,self.DecLaneCurvature)
         self.DecLaneMode_001 = dec_mission_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,)
-        self.DecLaneMode_002 = dec_mission_mode_002.DecLaneMode_002(self.CtrlMotorServo)
-        self.DecLaneMode_003 = dec_mission_mode_003.DecLaneMode_003()
-        self.DecLaneMode_004 = dec_mission_mode_004.DecLaneMode_004(self.CtrlMotorServo, self.DecLaneCurvature)
+        self.DecLaneMode_002 = dec_mission_mode_002.DecLaneMode_002(self.CtrlMotorServo,self.DecLaneCurvature)
+        self.DecLaneMode_003 = dec_mission_mode_003.DecLaneMode_003(self.CtrlMotorServo,self.DecLaneCurvature)
     def init_lidar_info(self):
         self.left_obstacle = False
         self.front_obstacle = False
@@ -102,18 +98,7 @@ class DecMain:
         self.white_right_lane = None 
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("per_camera_node")
-        
-    def CB_currentPose_info(self, msg):
-        try:
-            data = json.loads(msg.data)
-            self.x = data.get("x")
-            self.y = data.get("y")
-            self.yaw = data.get("yaw")
-            self.vel = data.get("vel")
-        except json.JSONDecodeError as e:
-            rospy.logwarn(f"JSON Decode Error: {e}")
-        except Exception as e:
-            rospy.logerr(f"Unexpected error: {e}")
+
     def CB_check_to_go_traffic_info(self, msg):
         self.is_to_go_traffic = msg.data
         self.DecLaneMode_002.set_is_to_go_traffic(self.is_to_go_traffic)
@@ -134,7 +119,7 @@ class DecMain:
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane, self.lane_mode = data[0],data[1],data[2],data[3],data[4], data[5]
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
-            self.DecLaneMode_004.set_camera_info(self.stop_line)
+            self.DecLaneMode_003.set_camera_info(self.stop_line)
             
         except Exception as e:
             print("복원 실패:", e)
@@ -163,8 +148,7 @@ class DecMain:
         rate = rospy.Rate(60)
         while not rospy.is_shutdown():
             start = time()
-            # print(f"self.stop_line {self.stop_line}")
-            if self.yellow_left_lane is not None or self.white_left_lane is not None or self.white_right_lane is not None:
+            try:
                 if self.mission_mode == 0:
                     print(f"mode {self.mission_mode}")
                     self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
@@ -178,15 +162,14 @@ class DecMain:
                     self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
                 elif self.mission_mode == 3:
                     print(f"mode {self.mission_mode}")
-                    self.DecLaneMode_003.handle_zone_goal_01()
-                elif self.mission_mode == 4:
-                    print(f"mode {self.mission_mode}")
-                    self.DecLaneMode_004.handle_zone_goal_02(self.stop_line)
+                    self.DecLaneMode_003.handle_zone_goal(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")
-                    self.DecLaneCurvature
-                    mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_right()
-                    self.DecLaneCurvature.pth01_ctrl_move_right(mode, left_lane, right_lane)
+                    mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+                    self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            except Exception as e:
+                rospy.logerr("어떤 값이 존재하지 않습니다.: %s", e)
+                return
             end = time()
             # print(f"time2 {end - start}")
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
