@@ -10,6 +10,7 @@ if parent_dir not in sys.path:
 
 import cv2 
 import numpy as np
+
 class SlidingWindow:
     def __init__(self):
         self.init_sliding()
@@ -52,7 +53,7 @@ class SlidingWindow:
         win_x_low = x_current - self.margin - prev_margin
         win_x_high = x_current + self.margin + prev_margin
 
-        cv2.rectangle(binary_img, (win_x_low, win_y_low), (win_x_high, win_y_high), color, 2)
+        # cv2.rectangle(binary_img, (win_x_low, win_y_low), (win_x_high, win_y_high), color, 2)
 
         good_inds = ((self.nonzeroy >= win_y_low) & (self.nonzeroy < win_y_high) &
                      (self.nonzerox >= win_x_low) & (self.nonzerox < win_x_high)).nonzero()[0]
@@ -144,13 +145,5 @@ class SlidingWindow:
                         rightx_current, righty_current, prev_right_margin, rightx_prev,
                         self.right_blocked_flag, binary_img_color, False,
                         other_x=leftx_current, min_sep=self.min_sep, color=(255, 0, 0))
-
-        # print(self.left_lane_start)
-        # print(self.right_lane_start)
-        
-        #print(self.left_lanes)
-        #print(self.right_lanes)
-
-        # print(self.left_lane_start < self.left_lane_end)
-        # print(self.right_lane_start < self.right_lane_end)
+                    
         return binary_img_color, self.left_lanes, self.right_lanes

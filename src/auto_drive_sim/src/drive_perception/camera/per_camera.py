@@ -40,8 +40,6 @@ class PerCamera:
     def init_processing(self):
         self.CameraPreprocessor = CameraPreprocessor()
         self.LaneFeatureExtractor = LaneFeatureExtractor()
-        self.SlidingWindow_yellow = SlidingWindow()
-        self.SlidingWindow_white = SlidingWindow()
         self.SlidingWindow = SlidingWindow()
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("per_camera_node")
@@ -72,8 +70,8 @@ class PerCamera:
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {
                 executor.submit(self.LaneFeatureExtractor.extract_stop_line, white_bin_img, self.img_y): 'stop_line',
-                executor.submit(self.SlidingWindow_yellow.sliding_window_adaptive, yellow_bin_img): 'yellow_lane',
-                executor.submit(self.SlidingWindow_white.sliding_window_adaptive, white_bin_img): 'white_lane',
+                executor.submit(self.SlidingWindow.sliding_window_adaptive, yellow_bin_img): 'yellow_lane',
+                executor.submit(self.SlidingWindow.sliding_window_adaptive, white_bin_img): 'white_lane',
                 executor.submit(self.LaneFeatureExtractor.estimate_current_lane, warped_img): 'current_lane'
             }
             
@@ -91,7 +89,6 @@ class PerCamera:
         self.yellow_lane_img, yellow_left_lane, yellow_right_lane = results.get('yellow_lane', (None, None, None))
         self.white_lane_img, white_left_lane, white_right_lane = results.get('white_lane', (None, None, None))
         self.current_lane = results.get('current_lane', None)
-        return yellow_left_lane, yellow_right_lane, white_left_lane, white_right_lane
         
     def processing(self):
         rate = rospy.Rate(60)
@@ -104,17 +101,11 @@ class PerCamera:
                 yellow_filtered_img, white_filtered_img = self.CameraPreprocessor.detect_color_yAndw(warped_img,warped_img_hsv)
                 yellow_bin_img,white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
 
-                # self.SlidingWindow.set_img_y(self.img_y)
-                
-                # self.SlidingWindow_yellow.set_img_y(self.img_y)
-                # self.SlidingWindow_white.set_img_y(self.img_y)
-                self.check_timer.start()
-                # yellow_left_lane, yellow_right_lane, white_left_lane, white_right_lane = self.process_parallel(white_bin_img,yellow_bin_img,warped_img)
+                self.SlidingWindow.set_img_y(self.img_y)
                 self.stop_line, white_bin_img= self.LaneFeatureExtractor.extract_stop_line(white_bin_img,self.img_y)
                 self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
                 self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
                 self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
-                self.check_timer.check()
                 
                 dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
                 self.pub_cam_info(dataset)
@@ -125,7 +116,8 @@ class PerCamera:
                 pass
             finally:
                 self.img = None
-            # rate.sleep()
+            # self.check_timer.start()
+            # self.check_timer.check()
             rate.sleep()
      
         
