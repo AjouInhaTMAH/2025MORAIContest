@@ -110,7 +110,7 @@ class PerCamera:
                 dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
                 self.pub_cam_info(dataset)
                 
-                # self.view_cam()
+                self.view_cam()
             except Exception as e:
                 # rospy.logerr(f"Image processing error: {e}")
                 pass

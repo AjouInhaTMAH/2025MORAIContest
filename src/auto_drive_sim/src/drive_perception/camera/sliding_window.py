@@ -53,7 +53,7 @@ class SlidingWindow:
         win_x_low = x_current - self.margin - prev_margin
         win_x_high = x_current + self.margin + prev_margin
 
-        # cv2.rectangle(binary_img, (win_x_low, win_y_low), (win_x_high, win_y_high), color, 2)
+        cv2.rectangle(binary_img, (win_x_low, win_y_low), (win_x_high, win_y_high), color, 2)
 
         good_inds = ((self.nonzeroy >= win_y_low) & (self.nonzeroy < win_y_high) &
                      (self.nonzerox >= win_x_low) & (self.nonzerox < win_x_high)).nonzero()[0]

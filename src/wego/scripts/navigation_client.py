@@ -7,6 +7,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.srv import GetPlan
 from morai_msgs.msg import ObjectStatusList
+from std_msgs.msg import Bool
 
 class NavigationClient():
     def __init__(self):
@@ -40,7 +41,7 @@ class NavigationClient():
         rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.pose_callback)
         rospy.Subscriber("/delivery_object", ObjectStatusList, self.object_callback)
         rospy.Timer(rospy.Duration(0.1), self.check_distance)
-
+        self.pub_start_mission2And3 = rospy.Publisher('/start/mission_zero', Bool, queue_size=10)
     def transform_to_map(self, x, y, z=0.0):
         pt = np.array([x, y, z, 1.0])  # Homogeneous coordinates
         pt_map = self.T_map_from_objectinfo @ pt
@@ -175,6 +176,7 @@ class NavigationClient():
             self.goal_sent = True
             rospy.loginfo(f"Sent goal {self.goal_index + 1}/{len(self.goal_list)}")
         else:
+            self.pub_start_mission2And3.publish(True)
             rospy.loginfo("🎉 All goals completed.")
             rospy.signal_shutdown("Navigation complete.")
 

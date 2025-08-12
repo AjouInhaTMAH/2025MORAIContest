@@ -31,7 +31,8 @@ class PerCarNavigation:
        # zone 좌표 정의 (map 좌표 기준 -> /amcl_pose를 morai에서 실제로 뽑아옴, )
         self.zones = {
             1: (-0.02331218035026452, 10.6556),   # mission 2 & 3 영역
-            2: (4.7866139, 4.34265),    # mission 5 영역
+            2: (5.1470, 4.3269),    # mission 5 영역
+            # 2: (4.7866139, 4.34265),    # mission 5 영역
             3: (8.2325, 1.7338),     # mission 5 영역
             # 4: (10.1863, -0.9488),     # mission 5 영역
         }

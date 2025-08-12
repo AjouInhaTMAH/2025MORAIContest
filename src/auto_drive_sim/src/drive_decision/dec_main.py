@@ -40,7 +40,6 @@ class DecMain:
         print(f"DecMain start")
 
         rospy.init_node('dec_main_node')
-        self.kill_slim_mover()
         self.init_processing()
         self.init_pubSub()
         self.init_msg()
@@ -61,13 +60,15 @@ class DecMain:
         rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
         rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info)
         rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs)
-
         rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info)
+        rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0)
+        
     def init_mission_mode(self):
         self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.start_flag = False
     def init_msg(self):
         self.is_to_go_traffic = False
         self.traffic_msg = GetTrafficLightStatus()
@@ -134,6 +135,10 @@ class DecMain:
     def CB_car_nav_info(self, msg):
         self.mission_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
 
+    def CB_mission_0(self,msg):
+        self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
+        self.kill_slim_mover()
+    
     def processing(self):
         """_summary_
         현재 구역을 나누었다.
@@ -146,7 +151,14 @@ class DecMain:
         해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
         """
         rate = rospy.Rate(60)
+        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.kill_slim_mover()
+        self.start_flag = True
         while not rospy.is_shutdown():
+            if not self.start_flag:
+                rate.sleep()
+                continue
+            
             start = time()
             try:
                 if self.mission_mode == 0:
@@ -173,8 +185,8 @@ class DecMain:
             end = time()
             # print(f"time2 {end - start}")
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
-            
             rate.sleep()
+            
             
 if __name__ == '__main__':
 

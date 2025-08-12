@@ -126,6 +126,6 @@ class DecLaneMode_000:
         else:
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
             # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
-            self.DecLaneCurvature.pth01_ctrl_move_right(mode, left_lane, right_lane)
+            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
             
 

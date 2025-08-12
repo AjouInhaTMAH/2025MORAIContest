@@ -335,7 +335,7 @@ class DecLaneCurvature:
         self.center_pixel = 320 - 20
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error * self.steer_per_pixel
-        print(f"left_lane:{left_lane} / right_lane:{right_lane} / stop_line:{stop_flag}")
+        # print(f"left_lane:{left_lane} / right_lane:{right_lane} / stop_line:{stop_flag}")
 
         x_vals, y_vals = [], []
         # if left_lane:
@@ -367,8 +367,8 @@ class DecLaneCurvature:
             self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
             rospy.loginfo("[CURV HOLD start] 3s steer pattern")
             return
-        print(f"modemodemode {mode}")
-        print(f"modemodemode {mode}")
+        # print(f"modemodemode {mode}")
+        # print(f"modemodemode {mode}")
         
         # 3초 홀드 중이면 무조건 직진 유지
         if now_ts < self.hold_until_ts:

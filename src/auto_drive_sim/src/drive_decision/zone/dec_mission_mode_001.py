@@ -86,10 +86,10 @@ class DecLaneMode_001:
         # self.mi4_in_flag = True
         if self.mi4_out_flag:
             print(f"5")
-            # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
-            # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
         elif self.mi4_in_flag:
-            self.stop_time(10)
+            # self.stop_time(10)
             self.out_rotray()
             self.mi4_out_flag = True
         elif self.mi4_stop_flag:
