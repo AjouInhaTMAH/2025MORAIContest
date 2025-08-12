@@ -18,7 +18,7 @@ if parent_dir not in sys.path:
 from time import *
 import rospy
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
 
 MAX_Y = 1
 class DecLaneMode_000:
@@ -26,7 +26,8 @@ class DecLaneMode_000:
         self.init_mission2_3()
         self.init_processing(CtrlMotorServo, DecLaneCurvature)
         
-    def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo, DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
+    def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
+                        DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
         self.CtrlMotorServo = CtrlMotorServo
         self.DecLaneCurvature = DecLaneCurvature
     
@@ -115,13 +116,16 @@ class DecLaneMode_000:
             steer = float(self.thick_plan[1]["steer"])
             speed = float(self.thick_plan[1]["speed"])
             duration = float(self.thick_plan[1]["duration"])
-            self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            self.count_stopsline += 1
+            if self.count_stopsline != 2:
+                self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
+                self.count_stopsline += 1
+                rospy.sleep(duration)
             print(f"self.count_stopsline {self.count_stopsline}")
             print(f"self.count_stopsline {self.count_stopsline}")
             print(f"self.count_stopsline {self.count_stopsline}")
-            rospy.sleep(duration)
         else:
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            self.DecLaneCurvature.pth01_ctrl_move_right(mode, left_lane, right_lane)
+            
 

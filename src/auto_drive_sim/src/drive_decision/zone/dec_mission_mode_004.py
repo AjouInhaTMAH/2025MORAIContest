@@ -16,30 +16,48 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from time import *
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
-
+from drive_decision.ctrl import ctrl_motor_servo
+from drive_decision.lane import dec_lane_curvature
+import rospy
 MAX_Y = 1
 class DecLaneMode_004:
-    def __init__(self,DecLaneAmcl, DecLaneDistance):
+    def __init__(self,CtrlMotorServo, DecLaneCurvature):
         self.init_goal()
-        self.init_processing(DecLaneAmcl, DecLaneDistance)
+        self.init_processing(CtrlMotorServo,DecLaneCurvature)
     def init_goal(self):
-        self.go_goal_stop_flag = False
-        self.go_goal_stop_end_flag = False
-    def init_processing(self, DecLaneAmcl:dec_lane_amcl.DecLaneAmcl , DecLaneDistance:dec_lane_distance.DecLaneDistance):
-        self.DecLaneAmcl = DecLaneAmcl
-        self.DecLaneDistance = DecLaneDistance
+        self.hold_until_ts = 0
+    def init_processing(self, CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
+                        DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
+        self.CtrlMotorServo = CtrlMotorServo
+        self.DecLaneCurvature = DecLaneCurvature
+    def set_camera_info(self,stop_line):
+        self.stop_line = stop_line
+
+        
     def handle_zone_goal_02(self,stop_line):
-        if self.go_goal_stop_end_flag:
-            print(f"4!")
-            self.DecLaneDistance.chose_center_right_white_lane()
-            self.DecLaneDistance.ctrl_moveByLine()
-        elif self.go_goal_stop_flag:
-            self.go_goal_stop_end_flag = self.DecLaneAmcl.drvie_amcl()
-        elif stop_line != [] and stop_line[MAX_Y] > 320:
-            print(f"stop!")
-            self.go_goal_stop_flag = True
-        else:
-            print(f"1!")
-            self.DecLaneDistance.chose_center_right_white_lane()
-            self.DecLaneDistance.ctrl_moveByLine()
+        now_ts = time()  # PID는 기존 time() 계속 사용
+        # 홀드가 아니면 의사결정
+        mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+        stop_flag = self.stop_line
+        
+        # if mode == "traffic":
+        #     steer, speed = self.traffic_control.traffic_action(stop_flag)  # 인자 필수
+        #     self.publish(speed, steer)
+        #     return
+        
+        # 3초 홀드 중이면 무조건 직진 유지
+        if now_ts < self.hold_until_ts:
+            self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
+            rospy.loginfo("[HOLD] go straight (%.2fs left)" % (self.hold_until_ts - now_ts))
+            return
+        
+        # go_straight가 트리거된 '그 순간'에만 3.5초 홀드 시작
+        if mode == "move_straight" and now_ts >= self.hold_until_ts:
+            self.hold_until_ts = now_ts + 3.5
+            self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
+            rospy.loginfo("[HOLD start] 3s straight")
+            return
+        
+        
+        # 그 외에는 정상 제어
+        self.DecLaneCurvature.ctrl_move_goal(mode, left_lane, right_lane, stop_flag)

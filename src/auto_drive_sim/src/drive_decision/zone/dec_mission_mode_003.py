@@ -16,14 +16,14 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from time import *
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
 
 class DecLaneMode_003:
-    def __init__(self,DecLaneDistance):
-        self.init_processing(DecLaneDistance)
+    def __init__(self):
+        self.init_processing()
         
-    def init_processing(self,DecLaneDistance:dec_lane_distance.DecLaneDistance):
-        self.DecLaneDistance = DecLaneDistance
+    def init_processing(self):
+        pass
     def handle_zone_goal_01(self):
         self.DecLaneDistance.chose_center_right_yellow_lane()
         self.DecLaneDistance.ctrl_moveByLine()

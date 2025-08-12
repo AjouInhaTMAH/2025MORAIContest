@@ -66,7 +66,8 @@ class PerCamera:
     def processing(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            # self.check_time.start()
+            # self.check_timer.start()
+            # 현재 문제 카메라가 30hz 처리하면 20hz가 됨, 턱없이 부족함 
             if self.img is not None:
                 self.img_y, self.img_x = self.img.shape[0:2]
                 warped_img = self.CameraPreprocessor.BEV_img_warp(self.img,self.img_y,self.img_x)
@@ -87,8 +88,8 @@ class PerCamera:
 
                 self.img = None
                 
-            rate.sleep()
-            # self.check_time.check()
+            # rate.sleep()
+            # self.check_timer.check()
      
         
 if __name__ == '__main__':

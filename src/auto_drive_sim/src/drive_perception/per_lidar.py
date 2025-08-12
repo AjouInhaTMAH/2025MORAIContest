@@ -175,7 +175,7 @@ class PerLidar:
                 self.pub_lidar_info(obstacles)
 
                 self.laser_data = None
-                self.view_obstacle_with_ROI(points)
+                # self.view_obstacle_with_ROI(points)
                 # self.check_timer.check()
             rate.sleep()
             

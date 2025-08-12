@@ -17,16 +17,15 @@ if parent_dir not in sys.path:
 
 from time import *
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
 MAX_Y = 1
 class DecLaneMode_002:
-    def __init__(self,CtrlMotorServo, DecLaneDistance):
+    def __init__(self,CtrlMotorServo):
         self.init_mission5()
-        self.init_processing(CtrlMotorServo, DecLaneDistance)
+        self.init_processing(CtrlMotorServo)
         
-    def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo, DecLaneDistance:dec_lane_distance.DecLaneDistance):
+    def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo):
         self.CtrlMotorServo = CtrlMotorServo
-        self.DecLaneDistance = DecLaneDistance
     def init_mission5(self):
         self.stop_mission5_flag = False
         self.pass_mission5_flag = False

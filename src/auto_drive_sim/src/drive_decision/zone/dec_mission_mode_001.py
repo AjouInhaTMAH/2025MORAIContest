@@ -18,12 +18,12 @@ if parent_dir not in sys.path:
 import rospy
 from time import *
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
 MAX_Y = 1
 class DecLaneMode_001:
-    def __init__(self,CtrlMotorServo, DecLaneCurvature,DecLaneDistance,DecLaneAmcl):
+    def __init__(self,CtrlMotorServo, DecLaneCurvature):
         self.init_mission4()
-        self.init_processing(CtrlMotorServo, DecLaneCurvature,DecLaneDistance,DecLaneAmcl)
+        self.init_processing(CtrlMotorServo, DecLaneCurvature)
     
     def init_mission4(self):
         self.mi4_stop_flag = False
@@ -32,13 +32,9 @@ class DecLaneMode_001:
         self.front_obstacle_length =None
         self.count_rotary = 0
     def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo
-                        , DecLaneCurvature:dec_lane_curvature.DecLaneCurvature
-                        , DecLaneDistance:dec_lane_distance.DecLaneDistance
-                        , DecLaneAmcl:dec_lane_amcl.DecLaneAmcl):
+                        , DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
         self.CtrlMotorServo = CtrlMotorServo
         self.DecLaneCurvature = DecLaneCurvature
-        self.DecLaneDistance = DecLaneDistance
-        self.DecLaneAmcl = DecLaneAmcl
 
     def set_lidar_info(self,left_obstacle,front_obstacle,right_obstacle,front_obstacle_length):
         self.left_obstacle, self.front_obstacle, self.right_obstacle, self.front_obstacle_length = left_obstacle,front_obstacle,right_obstacle,front_obstacle_length
@@ -50,20 +46,22 @@ class DecLaneMode_001:
     def out_rotray(self):
         start_time = rospy.Time.now().to_sec()
         print("self.stop_time(10)")
-        total_time = 0.64
-        turn_time = 0.155
+        total_time = 1.0
+        turn_time = 0.355
         while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
             now = rospy.Time.now().to_sec()
             speed = 1200
             if self.front_obstacle_length is not None:
                 total_time += 0.001
+                if now - start_time >= turn_time:
+                    turn_time += 0.001
                 # turn_time += 0.03
                 speed = 0
             print(f"speed {speed}")
             if  now - start_time >= turn_time: 
                 self.CtrlMotorServo.pub_move_motor_servo(speed,1)
             elif now - start_time >= 0.0:
-                self.CtrlMotorServo.pub_move_motor_servo(speed,0)
+                self.CtrlMotorServo.pub_move_motor_servo(speed,0.1)
             rospy.sleep(0.01)  # 여기서 ROS 콜백들이 처리됨
 
     def inter_rotary(self):
@@ -82,7 +80,7 @@ class DecLaneMode_001:
             elif now - start_time >= 0.0:
                 self.CtrlMotorServo.pub_move_motor_servo(2400, 0.5)
             rate.sleep()  # 여기서 ROS 콜백들이 처리됨
-        
+        # 240 ~260
     def handle_zone_mission4(self,stop_line):
         # start = time()
         # self.mi4_in_flag = True
@@ -91,6 +89,7 @@ class DecLaneMode_001:
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
             self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
         elif self.mi4_in_flag:
+            self.stop_time(10)
             self.out_rotray()
             self.mi4_out_flag = True
         elif self.mi4_stop_flag:
@@ -109,10 +108,10 @@ class DecLaneMode_001:
             self.stop_time(0)
         else:
             print(f"1")
-            # self.DecLaneDistance.chose_center_right_white_lane()
-            # self.DecLaneDistance.ctrl_moveByLine()
-            self.DecLaneDistance.chose_center_left_white_lane()
-            self.DecLaneDistance.ctrl_moveByLine()   
+            self.DecLaneDistance.chose_center_right_white_lane()
+            self.DecLaneDistance.ctrl_moveByLine()
+            # self.DecLaneDistance.chose_center_left_white_lane()
+            # self.DecLaneDistance.ctrl_moveByLine()   
             # start = time()
             # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision_left()
             # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)

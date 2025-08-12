@@ -28,7 +28,7 @@ import numpy as np
 from morai_msgs.msg import GetTrafficLightStatus
 from auto_drive_sim.msg import PersonBBox  # ← 커스텀 메시지에 confidence 필드 포함
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
 from drive_decision.zone import dec_mission_mode_000, dec_mission_mode_001, dec_mission_mode_002, dec_mission_mode_003
 from drive_decision.zone import dec_mission_mode_004
 import cv2
@@ -69,7 +69,7 @@ class DecMain:
         self.mission_mode = 4  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
     def init_msg(self):
         self.is_to_go_traffic = False
@@ -82,15 +82,12 @@ class DecMain:
     def init_processing(self):
         self.CtrlMotorServo = ctrl_motor_servo.CtrlMotorServo()
         
-        self.DecLaneAmcl = dec_lane_amcl.DecLaneAmcl(self.CtrlMotorServo)
         self.DecLaneCurvature = dec_lane_curvature.DecLaneCurvature(self.CtrlMotorServo)
-        self.DecLaneDistance = dec_lane_distance.DecLaneDistance(self.CtrlMotorServo)
-        
         self.DecLaneMode_000 = dec_mission_mode_000.DecLaneMode_000(self.CtrlMotorServo,self.DecLaneCurvature)
-        self.DecLaneMode_001 = dec_mission_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,self.DecLaneDistance, self.DecLaneAmcl)
-        self.DecLaneMode_002 = dec_mission_mode_002.DecLaneMode_002(self.CtrlMotorServo,self.DecLaneDistance)
-        self.DecLaneMode_003 = dec_mission_mode_003.DecLaneMode_003(self.DecLaneDistance)
-        self.DecLaneMode_004 = dec_mission_mode_004.DecLaneMode_004(self.DecLaneAmcl,self.DecLaneDistance,)
+        self.DecLaneMode_001 = dec_mission_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,)
+        self.DecLaneMode_002 = dec_mission_mode_002.DecLaneMode_002(self.CtrlMotorServo)
+        self.DecLaneMode_003 = dec_mission_mode_003.DecLaneMode_003()
+        self.DecLaneMode_004 = dec_mission_mode_004.DecLaneMode_004(self.CtrlMotorServo, self.DecLaneCurvature)
     def init_lidar_info(self):
         self.left_obstacle = False
         self.front_obstacle = False
@@ -128,7 +125,7 @@ class DecMain:
             self.front_obstacle_length = data[4]
             self.DecLaneMode_001.set_lidar_info(self.left_obstacle, self.front_obstacle, self.right_obstacle,self.front_obstacle_length)
             self.DecLaneMode_000.set_front_near_obstacle(self.front_near_obstacle)
-            print(f"self.front_obstacle_length {self.front_obstacle_length}")
+            # print(f"self.front_obstacle_length {self.front_obstacle_length}")
         except Exception as e:  
             print("복원 실패:", e)
     def CB_camera_info(self,msg):
@@ -136,8 +133,9 @@ class DecMain:
             data = json.loads(msg.data)
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane, self.lane_mode = data[0],data[1],data[2],data[3],data[4], data[5]
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
-            self.DecLaneDistance.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
+            self.DecLaneMode_004.set_camera_info(self.stop_line)
+            
         except Exception as e:
             print("복원 실패:", e)
     def CB_dynamic_obs(self, msg):
@@ -183,7 +181,6 @@ class DecMain:
                     self.DecLaneMode_003.handle_zone_goal_01()
                 elif self.mission_mode == 4:
                     print(f"mode {self.mission_mode}")
-                    self.DecLaneAmcl.set_currentPose_info(self.x, self.y, self.yaw)
                     self.DecLaneMode_004.handle_zone_goal_02(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")

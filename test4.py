@@ -47,19 +47,11 @@ class DecLaneCurvature:
         
         self.sequence_active = False
         self.sequence_start_time = 0
-        self.LANE_WIDTH_PIXELS = 260
-        
-        self.steer_hold_until_ts = 0.0
-        
-        self.lane_mode     = "right"
-        
     def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo):
         self.CtrlMotorServo = CtrlMotorServo
     def set_camera_info(self,stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane):
         self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = stop_line,yellow_left_lane,yellow_right_lane,white_left_lane,white_right_lane
-    def set_lane_mode(self, lane):
-        self.lane_mode = lane
-    
+
     def pth01_ctrl_decision(self):
         stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
 
@@ -69,6 +61,8 @@ class DecLaneCurvature:
         right_lane = white_right
         #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
             
+        LANE_WIDTH_PIXELS = 260 # 적절히 조정
+        # LANE_WIDTH_PIXELS = 270 # 적절히 조정
 
         if stop_line != []:
             cross_threshold = 35
@@ -134,7 +128,78 @@ class DecLaneCurvature:
         print("movemove")
         return "move_straight", left_lane, []
         
- 
+    def pth01_ctrl_decision_left(self):
+        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
+
+        # 한 쪽 차선만 들어오는 경우를 위한 통합 처리
+        left_white_lane = white_left
+        left_yellow_lane = yellow_left
+        right_lane = white_right
+        #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
+            
+        LANE_WIDTH_PIXELS = 260 # 적절히 조정
+
+        if stop_line != []:
+            cross_threshold = 35
+            min_y, max_y = stop_line
+            cross_diff = (max_y - min_y)
+            if cross_threshold < cross_diff:
+                self.stop_flag_num += 1
+            return self.stop_flag_num, [], []
+        
+        elif left_white_lane and right_lane:
+            left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
+            right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
+            left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
+            self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+            return "left_first_lane", left_white_lane, []
+
+        elif left_white_lane and not right_lane:
+            left_index = (left_white_lane[0][0] + left_white_lane[-1][0]) // 2
+            self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+            return "left_guided", left_white_lane, []
+
+        elif left_yellow_lane and right_lane:
+            left_index = (left_yellow_lane[0][0] + left_yellow_lane[-1][0]) // 2
+            self.center_index = left_index + LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+            return "first_lane", left_yellow_lane, []
+
+        elif right_lane and not left_white_lane:
+            right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
+            self.center_index = right_index - LANE_WIDTH_PIXELS // 2  # 가상의 중심선
+            return "right_guided", [], right_lane
+
+        else:
+            self.center_index = self.center_pixel  # 정중앙
+            return "go_straight", [], []
+    
+    def pth01_ctrl_decision_right(self):
+        stop_line, yellow_left, yellow_right, white_left, white_right = self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane
+
+        # 한 쪽 차선만 들어오는 경우를 위한 통합 처리
+        left_white_lane = white_left
+        left_yellow_lane = yellow_left
+        right_lane = white_right
+        #print(f"weight_left : {left_white_lane} / weight_right : {right_lane}")
+            
+        LANE_WIDTH_PIXELS = 260 # 적절히 조정
+
+        if stop_line != []:
+            cross_threshold = 35
+            min_y, max_y = stop_line
+            cross_diff = (max_y - min_y)
+            if cross_threshold < cross_diff:
+                self.stop_flag_num += 1
+            return self.stop_flag_num, [], []
+        elif left_white_lane and right_lane:
+            return self.which_lane(left_white_lane, right_lane)
+        
+        elif left_yellow_lane and right_lane:
+            return self.which_lane(left_yellow_lane, right_lane)
+        
+        else:
+            return self.forward()
+        
     def pth01_calculate_curvature(self, x_vals, y_vals):
         # 최소 데이터 개수 확인 (2개 미만이면 근사 자체가 불가능함)
         if len(x_vals) < 4:
@@ -164,9 +229,9 @@ class DecLaneCurvature:
             return 1e4  # 계산 실패 시 직선으로 간주
         
     def pth01_get_steer_gain(self, curvature):
-        A = 40.0  # 최대 gain
-        B = 0.002528 # 0.002528
-        return max(1.2, A * np.exp(-B * curvature))
+        A = 500.0  # 최대 gain
+        B = 0.003
+        return max(1.0, A * np.exp(-B * curvature))
     def pth01_get_base_speed(self, curvature):
         min_speed = self.min_speed
         max_speed = self.max_speed
@@ -185,6 +250,8 @@ class DecLaneCurvature:
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error*self.steer_per_pixel
         print(f"left_lane:{left_lane} / right_lane:{right_lane}")
+        left_detected = bool(left_lane)
+        right_detected = bool(right_lane)
         
         x_vals, y_vals = [], []
         if left_lane:
@@ -215,82 +282,71 @@ class DecLaneCurvature:
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
 
-    def is_lane_mode_left(self):
-        if self.lane_mode == "left":
-            return True
-        else:
-            return False
-    def ctrl_move_goal(self, mode, left_lane=None, right_lane=None,stop_flag = False):
-        now_ts = time()
-
-        # 2초 홀드 중이면 즉시 고정 출력
-        if now_ts < self.steer_hold_until_ts:
-            elapsed = self.steer_hold_until_ts - now_ts  # 남은 시간
-            hold_duration = 2.3
-            passed = hold_duration - elapsed             # 지난 시간
-
-            # (경과 시간, 스티어 값) 리스트
-            steer_pattern = [
-                (0.0, 0.5),  # 시작~0.45초
-                (0.25, 0.6),  # 시작~0.45초
-                (0.5, 0.7),  # 시작~0.45초
-                (0.7, 0.8),  # 시작~0.45초
-                (0.9, 0.9),  # 시작~0.45초
-                (1.1, 1.0),  # 0.45~2초
-                (2.3, 0.5),  # 0.45~2초
-            ]
-
-            steer_val = 0.55  # 기본값
-            for t_point, s_val in steer_pattern:
-                if passed >= t_point:
-                    steer_val = s_val
-                else:
-                    break
-
-            self.CtrlMotorServo.pub_move_motor_servo(1000, steer_val)
-            rospy.loginfo(f"[CURV HOLD pattern] t={passed:.2f}s steer={steer_val:.2f}")
-            return
-        
+    def pth01_get_steer_gain_right(self, curvature):
+        A = 20.0  # 최대 gain
+        B = 0.0025
+        return max(1.0, A * np.exp(-B * curvature))
+    def pth01_ctrl_move_right(self, mode, left_lane=None, right_lane=None):
         pixel_error = self.center_index - self.center_pixel
         steer_error = pixel_error * self.steer_per_pixel
-        print(f"left_lane:{left_lane} / right_lane:{right_lane} / stop_line:{stop_flag}")
+        print(f"left_lane:{left_lane} / right_lane:{right_lane}")
+        left_detected = bool(left_lane)
+        right_detected = bool(right_lane)
 
         x_vals, y_vals = [], []
         if left_lane:
             for pt in left_lane:
                 x_vals.append(pt[0])
                 y_vals.append(pt[1])
-
         elif right_lane:
             for pt in right_lane:
                 x_vals.append(pt[0])
                 y_vals.append(pt[1])
 
         curvature = self.pth01_calculate_curvature(x_vals, y_vals)
-
-            # stop_flag True이고 curvature 조건을 만족하면 2.5초 홀드 시작
-        if stop_flag: # and curvature <= 1000
-            self.steer_hold_until_ts = now_ts + 2.3
-            # 홀드 시작 프레임에서는 즉시 첫 패턴 값 적용
-            self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
-            rospy.loginfo("[CURV HOLD start] 3s steer pattern")
-            return
-        
-        steer_gain = self.pth01_get_steer_gain(curvature)
+        steer_gain = self.pth01_get_steer_gain_right(curvature)
         pid_output = self.pid.compute(steer_error)
-        steer = steer_gain * pid_output + 0.5
-                       
-        steer = max(self.min_steer, min(self.max_steer, steer))
+
+        now = time()
+
+        time_points = [0, 1, 2, 3]  # 0초부터 시작되도록 0 추가
+        steer_values = [0.7, 0.8, 0.9, 0.8]  # time_points 길이 맞춤
+
+        if not hasattr(self, "sequence_active"):
+            self.sequence_active = False
+            self.sequence_start_time = 0
+
+        if curvature <= 1000 and not self.sequence_active:
+            self.sequence_active = True
+            self.sequence_start_time = now
+            rospy.loginfo("[Sequence] Started fixed steer sequence")
+
+        if self.sequence_active:
+            elapsed = now - self.sequence_start_time
+            if elapsed > time_points[-1]:
+                self.sequence_active = False
+                rospy.loginfo("[Sequence] Finished fixed steer sequence")
+                steer = steer_gain * pid_output + 0.5
+                steer = max(self.min_steer, min(self.max_steer, steer))
+            else:
+                # time_points에 맞춰 가장 최근의 steer 값을 선택
+                steer = steer_values[0]
+                for i in range(1, len(time_points)):
+                    if elapsed >= time_points[i]:
+                        steer = steer_values[i]
+
+        else:
+            steer = steer_gain * pid_output + 0.5
+            steer = max(self.min_steer, min(self.max_steer, steer))
+
         base_speed = self.pth01_get_base_speed(curvature)
         deviation = abs(steer - 0.5)
         speed = max(self.min_speed, int(base_speed - deviation * (base_speed - self.min_speed)))
 
-        if self.is_lane_mode_left():
-            self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
-        else:
-            self.CtrlMotorServo.pub_move_motor_servo(400, 0.1)
+        self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
 
         rospy.loginfo(f"[PID] error: {steer_error:.4f}, output: {pid_output:.4f}")
         rospy.loginfo(f"[LCTRL] steer: {steer:.2f}, speed: {speed:.2f}")
         rospy.loginfo(f"[Curvature] value: {curvature:.2f}")
         rospy.loginfo(f"[steer_gain] value: {steer_gain:.2f}")
+        rospy.loginfo(f"[stop_flag_num] value: {self.stop_flag_num:.2f}")
