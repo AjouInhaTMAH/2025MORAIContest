@@ -18,6 +18,7 @@ if parent_dir not in sys.path:
 from time import *
 from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
+import rospy
 MAX_Y = 1
 class DecLaneMode_002:
     def __init__(self,CtrlMotorServo, DecLaneCurvature):
@@ -41,29 +42,38 @@ class DecLaneMode_002:
         if self.pass_mission5_flag:
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
             self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            # return True
         elif self.stop_mission5_flag and self.is_to_go_traffic:
             print(f"movemove")
             steer = 0.5
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(0.5)
+            rospy.sleep(0.5)
             steer = 0.3
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(2)
+            rospy.sleep(1.5)
             steer = 0.225
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(2)
+            rospy.sleep(2.5)
             self.pass_mission5_flag = True
             # self.stop_time(5)
         elif self.stop_mission5_flag:
-            print(f"stopstop")
+            # print(f"stopstop")
             self.CtrlMotorServo.pub_move_motor_servo(0,0.5)
-        elif stop_line != [] and stop_line[MAX_Y] > 360:
-            print(f"2")
-            self.stop_mission5_flag =True
-            self.stop_time(0)
+        elif stop_line != [] and stop_line[MAX_Y] > 100:
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            # self.stop_mission5_flag =True
+            self.stop_time(5)
         else:
+            print(f"out")
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
             self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+        return False

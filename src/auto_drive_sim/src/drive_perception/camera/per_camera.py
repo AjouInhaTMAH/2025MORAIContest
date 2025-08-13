@@ -91,7 +91,7 @@ class PerCamera:
         self.current_lane = results.get('current_lane', None)
         
     def processing(self):
-        rate = rospy.Rate(60)
+        rate = rospy.Rate(300)
         while not rospy.is_shutdown():
             # 현재 문제 카메라가 30hz 처리하면 20hz가 됨, 턱없이 부족함 
             try:

@@ -121,7 +121,6 @@ class DecMain:
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
             self.DecLaneMode_003.set_camera_info(self.stop_line)
-            
         except Exception as e:
             print("복원 실패:", e)
     def CB_dynamic_obs(self, msg):
@@ -151,29 +150,29 @@ class DecMain:
         해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
         """
         rate = rospy.Rate(60)
-        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.kill_slim_mover()
         self.start_flag = True
         while not rospy.is_shutdown():
             if not self.start_flag:
                 rate.sleep()
                 continue
-            
-            start = time()
             try:
                 if self.mission_mode == 0:
                     print(f"mode {self.mission_mode}")
                     self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
                 elif self.mission_mode == 1:
-                    print(f"mode {self.mission_mode}")
-                    self.check_timer.start()
-                    self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
-                    self.check_timer.check()
+                    # print(f"mode {self.mission_mode}")
+                    result = self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
+                    if result:
+                        self.mission_mode = 2
                 elif self.mission_mode == 2:
-                    print(f"mode {self.mission_mode}")
-                    self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
+                    # print(f"mode {self.mission_mode}")
+                    result = self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
+                    if result:
+                        self.mission_mode = 3
                 elif self.mission_mode == 3:
-                    print(f"mode {self.mission_mode}")
+                    # print(f"mode {self.mission_mode}")
                     self.DecLaneMode_003.handle_zone_goal(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")
@@ -182,8 +181,8 @@ class DecMain:
             except Exception as e:
                 rospy.logerr("어떤 값이 존재하지 않습니다.: %s", e)
                 return
-            end = time()
-            # print(f"time2 {end - start}")
+                    # self.check_timer.start()
+                    # self.check_timer.check()
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
             rate.sleep()
             

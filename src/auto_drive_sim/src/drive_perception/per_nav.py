@@ -36,7 +36,7 @@ class PerCarNavigation:
             3: (8.2325, 1.7338),     # mission 5 영역
             # 4: (10.1863, -0.9488),     # mission 5 영역
         }
-        self.zone_threshold = 0.5  # 허용 반경 (meters)
+        self.zone_threshold = 1.0  # 허용 반경 (meters)
         self.x = 0
         self.y = None
         self.w = 0
