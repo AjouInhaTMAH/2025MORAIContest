@@ -31,6 +31,7 @@ from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
 from drive_decision.zone import dec_mission_mode_000, dec_mission_mode_001, dec_mission_mode_002, dec_mission_mode_003
 import cv2
+import threading
 
 MIN_Y = 0
 MAX_Y = 1
@@ -138,6 +139,9 @@ class DecMain:
         self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
         self.kill_slim_mover()
     
+    def spin_CB(self):
+        rospy.spin()
+
     def processing(self):
         """_summary_
         현재 구역을 나누었다.
@@ -190,5 +194,7 @@ class DecMain:
 if __name__ == '__main__':
 
     node = DecMain()
+    cb_thread = threading.Thread(target=node.spin_CB)
+    cb_thread.start()
     node.processing()   # spin 대신 processing 돌기
 
