@@ -101,6 +101,7 @@ class DecLaneMode_001:
             print(f"no obs")
             self.inter_rotary()
             self.mi4_in_flag = True
+            self.stop_time(3)
         elif stop_line != [] and stop_line[MAX_Y] > 240:
             print(f"2")
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
@@ -109,8 +110,10 @@ class DecLaneMode_001:
             self.stop_time(0)
         else:
             print(f"1")
-            mode, left_lane, right_lane = self.DecLaneCurvature.ctrl_decision_mission1()
-            self.DecLaneCurvature.ctrl_move_mission1(mode, left_lane, right_lane)
+            mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            # mode, left_lane, right_lane = self.DecLaneCurvature.ctrl_decision_mission1()
+            # self.DecLaneCurvature.ctrl_move_mission1(mode, left_lane, right_lane)
         return False
         # print(f"??? {time() - start}")
     def check_obstacle_rotary(self):

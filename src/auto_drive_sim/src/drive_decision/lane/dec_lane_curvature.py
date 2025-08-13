@@ -44,8 +44,8 @@ class DecLaneCurvature:
         self.stop_flag_num = 0
         self.max_speed = 1200
         self.min_speed = 700
-        # self.max_speed = 400
-        # self.min_speed = 400
+        self.max_speed = 400
+        self.min_speed = 400
         # self.max_speed = 2400
         # self.min_speed = 2400
         self.pid = PIDController()

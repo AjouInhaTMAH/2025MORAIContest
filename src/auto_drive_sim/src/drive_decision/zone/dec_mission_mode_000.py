@@ -60,9 +60,10 @@ class DecLaneMode_000:
         y_val = None
         if isinstance(stop_line, (list, tuple)) and len(stop_line) > MAX_Y:
             y_val = stop_line[MAX_Y]
-            rospy.loginfo(f"❌❌❌❌❌❌❌[DBG] stop_line_y={y_val}")
+            # rospy.loginfo(f"❌❌❌❌❌❌❌[DBG] stop_line_y={y_val}")
         else:
-            rospy.loginfo(f"[DBG] stop_line 구조가 예상과 다릅니다: {stop_line}")
+            # rospy.loginfo(f"[DBG] stop_line 구조가 예상과 다릅니다: {stop_line}")
+            pass
 
         if y_val is not None and y_val > self.stopline_threshold_y:
             if not self.stopline_seen_once and not self.stopline_active:
@@ -174,7 +175,7 @@ class DecLaneMode_000:
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return
 
-        if self.stopline_active and self.count_stopsline != 2:
+        if self.stopline_active and self.count_stopsline <= 2:
             steer, speed = self.stopline_cmd
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return

@@ -41,7 +41,10 @@ class PerCarNavigation:
         self.y = None
         self.w = 0
         self.vel = 0
-        self.recent_zone = 0
+        self.recent_zone = 3
+        self.recent_zone = 2
+        self.recent_zone = 1
+        # self.recent_zone = 0
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerCarNavigation")
 

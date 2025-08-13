@@ -26,7 +26,8 @@ class NavigationClient():
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
+        # self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
+        self.final_destination = (10.818598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
 
         # 4x4 transform matrix: ObjectInfo → map
         self.T_map_from_objectinfo = np.array([[ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
