@@ -58,10 +58,10 @@ class DecMain:
     def init_pubSub(self):
         rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
         rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
-        rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info)
-        rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs)
-        rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info)
-        rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0)
+        rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info, queue_size=1)
+        rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
+        rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info, queue_size=1)
+        rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0, queue_size=1)
         
     def init_mission_mode(self):
         self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
@@ -149,8 +149,8 @@ class DecMain:
         이는 유동적으로 변할 수 있으므로 유의해야 한다.
         해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
         """
-        rate = rospy.Rate(60)
-        self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        rate = rospy.Rate(90)
+        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.kill_slim_mover()
         self.start_flag = True
         while not rospy.is_shutdown():

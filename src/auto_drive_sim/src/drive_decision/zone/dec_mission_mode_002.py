@@ -58,20 +58,13 @@ class DecLaneMode_002:
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
             rospy.sleep(2.5)
             self.pass_mission5_flag = True
-            # self.stop_time(5)
         elif self.stop_mission5_flag:
             # print(f"stopstop")
             self.CtrlMotorServo.pub_move_motor_servo(0,0.5)
         elif stop_line != [] and stop_line[MAX_Y] > 100:
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
-            # self.stop_mission5_flag =True
-            self.stop_time(5)
+            self.stop_mission5_flag =True
+            self.stop_time(0)
         else:
             print(f"out")
             mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()

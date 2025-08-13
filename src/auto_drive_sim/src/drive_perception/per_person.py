@@ -31,8 +31,8 @@ class PerPerson:
         self.init_model()
         self.init_timer()
     def init_pubSub(self):
-        self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw)
-        self.pub = rospy.Publisher("/person_bbox", String, queue_size=10)
+        self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
+        self.pub = rospy.Publisher("/person_bbox", String, queue_size=1)
     def init_model(self):
         self.bridge = CvBridge()
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s", force_reload=False)
@@ -57,11 +57,11 @@ class PerPerson:
 
     def CB_cam_raw(self, msg):
         self.img = msg
+        self.processing()
     
     def pub_person_info(self,data):
         json_str = json.dumps(data)
         self.pub.publish(json_str)
-        # print(f"pub {data}")
     
     def detect_obstacle(self,data):
         center_x   = (data[0] + data[2]) / 2.0
@@ -121,15 +121,11 @@ class PerPerson:
         cv2.waitKey(1)
 
     def processing(self):
-        rate = rospy.Rate(60)
-        while not rospy.is_shutdown():
-            if self.img is not None:
-                # self.check_timer.start()
-                self.extract_dynamic_obs()
-                self.img = None
-                # self.check_timer.check()
-                # print(f"time {time()-start}")
-            rate.sleep()
+        try:
+            self.extract_dynamic_obs()
+        except Exception as e:
+            pass
 if __name__ == '__main__':
     node = PerPerson()
-    node.processing()   # spin 대신 processing 돌기
+    rospy.spin()
+    

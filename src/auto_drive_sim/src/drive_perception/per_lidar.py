@@ -28,8 +28,8 @@ class PerLidar:
         self.init_timer()
 
     def init_pubSub(self):
-        rospy.Subscriber("/lidar2D", LaserScan, self.CB_lidar_raw)
-        self.pub_lidar = rospy.Publisher('/perception/lidar', String, queue_size=10)
+        rospy.Subscriber("/lidar2D", LaserScan, self.CB_lidar_raw, queue_size=1)
+        self.pub_lidar = rospy.Publisher('/perception/lidar', String, queue_size=1)
     def init_msg(self):
         self.laser_data = None
     def init_timer(self):
@@ -53,6 +53,7 @@ class PerLidar:
         
     def CB_lidar_raw(self, msg):
         self.laser_data = msg
+        self.processing()
 
     def pub_lidar_info(self,obstacles):
         json_str = json.dumps(obstacles)
@@ -160,25 +161,17 @@ class PerLidar:
         cv2.waitKey(1)
 
     def processing(self):
-        rate = rospy.Rate(40)
-        while not rospy.is_shutdown():
-            if self.laser_data is not None:
-                # self.check_timer.start()
-                # 모든 점을 현재 위치를 기준이 0,0 이라고 할때, x,y값으로 출력하도록 하기, 앞이 x-, 오른쪽이 y + 방향이다.
-                
-                points = self.calculate_xy_coordinates() # 좌표계 환산
-                front_pts, left_pts, right_pts, front_pts_near = self.divide_ROI(points)
-                obstacles = self.decide_obstacle((left_pts,front_pts,right_pts,front_pts_near))
-                obstacles.append(self.front_length(front_pts))
-                
-                # print(obstacles)
-                self.pub_lidar_info(obstacles)
-
-                self.laser_data = None
-                # self.view_obstacle_with_ROI(points)
-                # self.check_timer.check()
-            rate.sleep()
+        try:
+            points = self.calculate_xy_coordinates() # 좌표계 환산
+            front_pts, left_pts, right_pts, front_pts_near = self.divide_ROI(points)
+            obstacles = self.decide_obstacle((left_pts,front_pts,right_pts,front_pts_near))
+            obstacles.append(self.front_length(front_pts))
+            
+            self.pub_lidar_info(obstacles)
+        except Exception as e:
+            pass
             
 if __name__ == '__main__':
     node = PerLidar()
-    node.processing()   # spin 대신 processing 돌기
+    rospy.spin()
+    

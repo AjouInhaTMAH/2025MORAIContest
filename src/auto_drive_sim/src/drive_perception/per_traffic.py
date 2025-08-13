@@ -26,7 +26,7 @@ class PerTraffic:
         self.init_traffic()
         
     def init_pubSub(self):
-        rospy.Subscriber("/GetTrafficLightStatus", GetTrafficLightStatus, self.CB_traffic_raw)
+        rospy.Subscriber("/GetTrafficLightStatus", GetTrafficLightStatus, self.CB_traffic_raw, queue_size=1)
         self.pub_is_go_traffic = rospy.Publisher('/is_to_go_traffic', Bool, queue_size=1)
     def init_traffic(self):
         self.signal = 0
@@ -40,18 +40,19 @@ class PerTraffic:
             self.signal = self.traffic_msg.trafficLightStatus
             if self.prev_signal != self.signal:
                 self.prev_signal = self.signal
+        self.processing()
                 
     def pub_check_traffic(self):
         is_go = self.signal in [16, 33]
         self.pub_is_go_traffic.publish(Bool(data=is_go))
 
     def processing(self):
-        rate = rospy.Rate(50)  # 40Hz 루프
-        while not rospy.is_shutdown():
-            # 조건 체크 및 publish
+        try:
             self.pub_check_traffic()
-            rate.sleep()
+        except Exception as e:
+            pass
+
             
 if __name__ == '__main__':
     node = PerTraffic()
-    node.processing()
+    rospy.spin()

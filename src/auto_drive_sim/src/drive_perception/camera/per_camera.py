@@ -33,7 +33,7 @@ class PerCamera:
 
     def init_pubSub(self):
         rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
-        self.pub = rospy.Publisher('/perception/camera', String, queue_size=10)
+        self.pub = rospy.Publisher('/perception/camera', String, queue_size=1)
     def init_msg(self):
         self.img = None
         self.bridge = CvBridge()
@@ -46,6 +46,7 @@ class PerCamera:
 
     def CB_cam_raw(self,msg):
         self.img = self.bridge.compressed_imgmsg_to_cv2(msg)
+        self.processing()
 
     def pub_cam_info(self,dataset):
         json_str = json.dumps(dataset)
@@ -66,62 +67,29 @@ class PerCamera:
         # end = time()
         # print(f"time1 {end - start1} ")
         
-    def process_parallel(self, white_bin_img, yellow_bin_img, warped_img):
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(self.LaneFeatureExtractor.extract_stop_line, white_bin_img, self.img_y): 'stop_line',
-                executor.submit(self.SlidingWindow.sliding_window_adaptive, yellow_bin_img): 'yellow_lane',
-                executor.submit(self.SlidingWindow.sliding_window_adaptive, white_bin_img): 'white_lane',
-                executor.submit(self.LaneFeatureExtractor.estimate_current_lane, warped_img): 'current_lane'
-            }
-            
-            results = {}
-            for future in as_completed(futures):
-                key = futures[future]
-                try:
-                    results[key] = future.result()
-                except Exception as e:
-                    rospy.logerr(f"{key} processing error: {e}")
-                    results[key] = None
-
-        # 결과 대입
-        self.stop_line, white_bin_img = results.get('stop_line', (None, None))
-        self.yellow_lane_img, yellow_left_lane, yellow_right_lane = results.get('yellow_lane', (None, None, None))
-        self.white_lane_img, white_left_lane, white_right_lane = results.get('white_lane', (None, None, None))
-        self.current_lane = results.get('current_lane', None)
-        
     def processing(self):
-        rate = rospy.Rate(300)
-        while not rospy.is_shutdown():
-            # 현재 문제 카메라가 30hz 처리하면 20hz가 됨, 턱없이 부족함 
-            try:
-                self.img_y, self.img_x = self.img.shape[0:2]
-                warped_img = self.CameraPreprocessor.BEV_img_warp(self.img,self.img_y,self.img_x)
-                warped_img_hsv = cv2.cvtColor(warped_img,cv2.COLOR_BGR2HSV)
-                yellow_filtered_img, white_filtered_img = self.CameraPreprocessor.detect_color_yAndw(warped_img,warped_img_hsv)
-                yellow_bin_img,white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
+        try:
+            self.img_y, self.img_x = self.img.shape[0:2]
+            warped_img = self.CameraPreprocessor.BEV_img_warp(self.img,self.img_y,self.img_x)
+            warped_img_hsv = cv2.cvtColor(warped_img,cv2.COLOR_BGR2HSV)
+            yellow_filtered_img, white_filtered_img = self.CameraPreprocessor.detect_color_yAndw(warped_img,warped_img_hsv)
+            yellow_bin_img,white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
 
-                self.SlidingWindow.set_img_y(self.img_y)
-                self.stop_line, white_bin_img= self.LaneFeatureExtractor.extract_stop_line(white_bin_img,self.img_y)
-                self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
-                self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
-                self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
-                
-                dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
-                self.pub_cam_info(dataset)
-                
-                self.view_cam()
-            except Exception as e:
-                # rospy.logerr(f"Image processing error: {e}")
-                pass
-            finally:
-                self.img = None
-            # self.check_timer.start()
-            # self.check_timer.check()
-            rate.sleep()
+            self.SlidingWindow.set_img_y(self.img_y)
+            self.stop_line, white_bin_img= self.LaneFeatureExtractor.extract_stop_line(white_bin_img,self.img_y)
+            self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
+            self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
+            self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
+            
+            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
+            self.pub_cam_info(dataset)
+            
+            self.view_cam()
+        except Exception as e:
+            pass
      
         
 if __name__ == '__main__':
     node = PerCamera()
-    node.processing()   # spin 대신 processing 돌기
+    rospy.spin()
     
