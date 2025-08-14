@@ -43,7 +43,7 @@ class DecLaneMode_002:
             self.DecLaneCurvature.decision(3)
             return True
         elif self.stop_mission5_flag and self.is_to_go_traffic:
-            print(f"movemove")
+            # print(f"movemove")
             steer = 0.5
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
@@ -65,6 +65,6 @@ class DecLaneMode_002:
             self.stop_mission5_flag =True
             self.stop_time(0)
         else:
-            print(f"out")
+            # print(f"out")
             self.DecLaneCurvature.decision(3)
         return False

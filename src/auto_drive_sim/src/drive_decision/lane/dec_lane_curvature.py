@@ -197,7 +197,8 @@ class DecLaneCurvature:
             if not left_lane:
                 right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
                 self.center_index = right_index - self.LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-                self.center_index -= 55
+                # self.center_index -= 55
+                self.center_index -= 35
                 print(f"self.center_index111 {self.center_index}")
             else:
                 left_index = (left_lane[0][0] + left_lane[-1][0]) // 2
@@ -273,6 +274,9 @@ class DecLaneCurvature:
                 self.CtrlMotorServo.pub_move_motor_servo(1200,0.5)
                 rospy.sleep(3.0)
                 return
+        if mission_mode == 1:
+            self.center_index += 50
+            
         curvature = self.calculate_curvature(left_lane,right_lane)
                 
         self.ctrl_move(mission_mode, curvature, self.center_index)

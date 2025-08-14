@@ -52,13 +52,12 @@ class DecLaneMode_001:
     
     def out_rotray_not_obs(self):
         start_time = rospy.Time.now().to_sec()
-        turn_left_time = 0.5
-        turn_right_time = 1.3
+        turn_left_time = 0.6
+        turn_right_time = 1.4
         total_time = turn_left_time + turn_right_time
         while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
             now = rospy.Time.now().to_sec()
             speed = 800
-            print(f"speed {speed}")
             if  now - start_time >= turn_left_time: 
                 self.CtrlMotorServo.pub_move_motor_servo(speed,1)
             elif now - start_time >= 0.0:
@@ -100,7 +99,7 @@ class DecLaneMode_001:
                 steer = np.interp(error_y, [y_min, y_max], [steer_min, steer_max])
                 steer = max(steer_min, min(steer, steer_max))  # 안전 범위 제한
 
-                print(f"error_x={error_x:.3f}, error_y={error_y:.3f}, speed={speed:.1f}, steer={steer:.3f}")
+                # print(f"error_x={error_x:.3f}, error_y={error_y:.3f}, speed={speed:.1f}, steer={steer:.3f}")
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
             # print(f"speed {speed}")
     def go_out_of_rotary(self):
@@ -111,7 +110,7 @@ class DecLaneMode_001:
         while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
             now = rospy.Time.now().to_sec()
             speed = 1200
-            print(f"speed {speed}")
+            # print(f"speed {speed}")
             if  now - start_time >= turn_right_time: 
                 self.CtrlMotorServo.pub_move_motor_servo(speed,0)
             else :
@@ -146,20 +145,22 @@ class DecLaneMode_001:
         # enable_stopline_check = False  # 5초 지나야 stop_line 검사
         
         if self.mi4_out_flag:
-            print(f"5")
+            # print(f"5")
             self.stop_time(0)
             self.DecLaneCurvature.set_speed(700,1200)
             self.DecLaneCurvature.decision()
             return True
         elif self.mi4_in_flag:
             if self.rotary_obstacle_length == []:
+                print(f"obs")
                 self.out_rotray_not_obs()
             else:
+                print(f"obs")
                 self.out_rotray_obs()
             self.mi4_out_flag = True
             
         elif self.mi4_stop_flag:
-            print(f"3")
+            # print(f"3")
             if self.check_obstacle_rotary():
                 self.obs_now = True
                 return
@@ -171,17 +172,17 @@ class DecLaneMode_001:
             self.mi4_in_flag = True
             self.stop_time(0)
         elif stop_line != [] and stop_line[MAX_Y] > 360:
-            print(f"2")
+            # print(f"2")
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
             self.mi4_stop_flag =True
             self.obs_now = False
             self.stop_time(0)
         elif enable_stopline_check:
-            print(f"1_timer")
+            # print(f"1_timer")
             self.DecLaneCurvature.set_speed(400,400)
             self.DecLaneCurvature.decision()
         else:
-            print(f"1")
+            # print(f"1")
             self.DecLaneCurvature.decision(0)
         return False
         # print(f"??? {time() - start}")

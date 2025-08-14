@@ -54,8 +54,6 @@ class LaneFeatureExtractor:
         right_white_count  = cv2.countNonZero(right_roi)
 
         #print(f"🟨 left yellow: {left_yellow_count}, ⬜ right white: {right_white_count}")
-
-
         # cv2.imshow("Yellow Mask", yellow_mask)
         # cv2.imshow("White Mask", white_mask)
         # cv2.waitKey(1)
@@ -78,5 +76,3 @@ class LaneFeatureExtractor:
         roi = img[y1:y2, x1:x2]
         yellow_count = int(cv2.countNonZero(roi))
         return yellow_count > 0
-
-            

@@ -44,20 +44,16 @@ class DecLaneMode_003:
         # 2초 홀드 중이면 즉시 고정 출력
         if now_ts < self.steer_hold_until_ts:
             elapsed = self.steer_hold_until_ts - now_ts  # 남은 시간
-            hold_duration = 2.3
+            hold_duration = 2.5
             passed = hold_duration - elapsed             # 지난 시간
 
             # (경과 시간, 스티어 값) 리스트
             steer_pattern = [
                 (0.0, 0.5),  # 시작~0.45초
-                (0.35, 0.6),  # 시작~0.45초
-                (0.5, 0.7),  # 시작~0.45초
-                (0.7, 0.8),  # 시작~0.45초
-                (0.9, 0.7),  # 시작~0.45초
-                (1.1, 1.0),  # 0.45~2초
-                (1.6, 0.8),  # 0.45~2초
-                (2.2, 1.0),  # 0.45~2초
-                (2.3, 0.5),  # 0.45~2초
+                (0.3, 0.8),  # 시작~0.45초
+                (1.3, 0.9),  # 시작~0.45초
+                # (2.3, 0.5),  # 0.45~2초
+                (2.5, 0.5),  # 0.45~2초
             ]
 
             steer_val = 0.55  # 기본값
@@ -71,7 +67,7 @@ class DecLaneMode_003:
             rospy.loginfo(f"[CURV HOLD pattern] t={passed:.2f}s steer={steer_val:.2f}")
             return False
         
-        self.steer_hold_until_ts = now_ts + 2.3
+        self.steer_hold_until_ts = now_ts + 2.5
         self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
         self.count_right_hardcoding_follow += 1
         return False
@@ -82,7 +78,7 @@ class DecLaneMode_003:
             self.DecLaneCurvature.decision(1)
         elif self.stop_right_flag:
             self.right_hardcoding_follow()
-        elif stop_line != [] and stop_line[MAX_Y] > 100:
+        elif stop_line != [] and stop_line[MAX_Y] > 400:
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
             self.stop_right_flag =True
         else:
