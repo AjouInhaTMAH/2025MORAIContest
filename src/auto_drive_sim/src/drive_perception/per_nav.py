@@ -31,7 +31,7 @@ class PerCarNavigation:
        # zone 좌표 정의 (map 좌표 기준 -> /amcl_pose를 morai에서 실제로 뽑아옴, )
         self.zones = {
             1: (-0.02331218035026452, 10.6556),   # mission 2 & 3 영역
-            2: (5.1470, 4.3269),    # mission 5 영역
+            2: (5.1470, 4.1669),    # mission 5 영역
             # 2: (4.7866139, 4.34265),    # mission 5 영역
             3: (8.2325, 1.7338),     # mission 5 영역
             # 4: (10.1863, -0.9488),     # mission 5 영역
@@ -41,10 +41,7 @@ class PerCarNavigation:
         self.y = None
         self.w = 0
         self.vel = 0
-        self.recent_zone = 3
-        self.recent_zone = 2
-        self.recent_zone = 1
-        # self.recent_zone = 0
+        self.recent_zone = 0
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerCarNavigation")
 
@@ -69,13 +66,13 @@ class PerCarNavigation:
                 # if self.recent_zone != zone_id:
                 rospy.loginfo(f"📍 현재 위치 zone {zone_id} 감지됨 (x={x:.2f}, y={y:.2f})")
                 self.recent_zone = zone_id
+                self.pub_mission_mode_info(self.recent_zone)
                 return
         # zone 범위 벗어난 경우
         
     def processing(self):
         try:
             self.check_zones()
-            self.pub_mission_mode_info(self.recent_zone)
         except Exception as e:
             pass
                 

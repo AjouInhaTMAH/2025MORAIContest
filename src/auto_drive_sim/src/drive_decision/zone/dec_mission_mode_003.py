@@ -25,6 +25,9 @@ class DecLaneMode_003:
         self.init_goal()
         self.init_processing(CtrlMotorServo,DecLaneCurvature)
     def init_goal(self):
+        self.stop_right_flag = False
+        self.steer_hold_until_ts = 0.0
+        self.count_right_hardcoding_follow = 0
         pass
     def init_processing(self, CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
                         DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
@@ -34,17 +37,54 @@ class DecLaneMode_003:
         self.stop_line = stop_line
 
         
+
+    def right_hardcoding_follow(self):
+        now_ts = time()
+        print(f"right_hardcoding_follow")
+        # 2초 홀드 중이면 즉시 고정 출력
+        if now_ts < self.steer_hold_until_ts:
+            elapsed = self.steer_hold_until_ts - now_ts  # 남은 시간
+            hold_duration = 2.3
+            passed = hold_duration - elapsed             # 지난 시간
+
+            # (경과 시간, 스티어 값) 리스트
+            steer_pattern = [
+                (0.0, 0.5),  # 시작~0.45초
+                (0.35, 0.6),  # 시작~0.45초
+                (0.5, 0.7),  # 시작~0.45초
+                (0.7, 0.8),  # 시작~0.45초
+                (0.9, 0.7),  # 시작~0.45초
+                (1.1, 1.0),  # 0.45~2초
+                (1.6, 0.8),  # 0.45~2초
+                (2.2, 1.0),  # 0.45~2초
+                (2.3, 0.5),  # 0.45~2초
+            ]
+
+            steer_val = 0.55  # 기본값
+            for t_point, s_val in steer_pattern:
+                if passed >= t_point:
+                    steer_val = s_val
+                else:
+                    break
+
+            self.CtrlMotorServo.pub_move_motor_servo(1000, steer_val)
+            rospy.loginfo(f"[CURV HOLD pattern] t={passed:.2f}s steer={steer_val:.2f}")
+            return False
+        
+        self.steer_hold_until_ts = now_ts + 2.3
+        self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
+        self.count_right_hardcoding_follow += 1
+        return False
+        
     def handle_zone_goal(self,stop_line):
         # 홀드가 아니면 의사결정
-        mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-        stop_flag = self.stop_line
-        
-        # if mode == "traffic":
-        #     steer, speed = self.traffic_control.traffic_action(stop_flag)  # 인자 필수
-        #     self.publish(speed, steer)
-        #     return
-
-        
-        
-        # 그 외에는 정상 제어
-        self.DecLaneCurvature.ctrl_move_goal(mode, left_lane, right_lane, stop_flag)
+        if self.count_right_hardcoding_follow == 2:
+            self.DecLaneCurvature.decision(1)
+        elif self.stop_right_flag:
+            self.right_hardcoding_follow()
+        elif stop_line != [] and stop_line[MAX_Y] > 100:
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
+            self.stop_right_flag =True
+        else:
+            # print(f"goal_zone")
+            self.DecLaneCurvature.decision(3)

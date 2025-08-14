@@ -35,7 +35,7 @@ class PerLidar:
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerLidar")
     def init_ROI(self):
-        self.length_x_front = -0.6
+        self.length_x_front = -0.8
         self.length_y_front = 0.2
         
         self.length_x_front_rotary = -0.6
@@ -43,13 +43,17 @@ class PerLidar:
         self.length_x_front_near = -1.25
         self.length_y_front_near = 0.05
         
-        self.length_x_left = -0.6
+        self.length_x_left = -0.8
         self.length_y_left_min = -0.525
         self.length_y_left_max = -0.175
         
-        self.length_x_right = -0.95
+        self.length_x_right = -1.3
         self.length_y_right_min = 0.175
-        self.length_y_right_max = 0.525
+        self.length_y_right_max = 0.55
+        
+        self.length_x_rotary = -1.0
+        self.length_y_rotary_min = -0.525
+        self.length_y_rotary_max = 0.175
         
     def CB_lidar_raw(self, msg):
         self.laser_data = msg
@@ -94,8 +98,13 @@ class PerLidar:
         # 우측
         mask_right = (self.length_x_right <= x) & (x <= 0) & (self.length_y_right_min <= y) & (y <= self.length_y_right_max)
         right_pts = points_np[mask_right]
+        
+        # 우측
+        mask_rotary = (self.length_x_rotary <= x) & (x <= 0) & (self.length_y_rotary_min <= y) & (y <= self.length_y_rotary_max)
+        rotary_pts = points_np[mask_rotary]
 
-        return front_pts, left_pts, right_pts ,front_pts_near
+
+        return front_pts, left_pts, right_pts ,front_pts_near, rotary_pts
         # right 구역
     def decide_obstacle(self,points):
         results = []
@@ -105,19 +114,11 @@ class PerLidar:
             results.append(is_obstacle)
         return results
     
-    def front_length(self,front_pts):
+    def decide_ROI_point_mean(self,pts):
         # front_pts가 비어있으면 None 리턴
-        if front_pts is None or len(front_pts) == 0:
-            return None
-        
-        # front_pts가 numpy 배열이 아니라면 변환
-        front_pts = np.array(front_pts)
-        
-        # 첫 번째 열(각 좌표의 x값) 추출
-        first_column = front_pts[:, 0]
-        
-        # 평균 계산
-        return np.mean(first_column)
+        if pts is None or len(pts) == 0:
+            return []
+        return np.mean(pts, axis=0).tolist()
     
     def view_obstacle_with_ROI(self,points):
         # OpenCV 시각화
@@ -155,6 +156,13 @@ class PerLidar:
         ry2 = cy
         cv2.rectangle(img, (rx1, ry1), (rx2, ry2), (255, 0, 255), 1)  # Magenta
     
+        # 우측 ROI (오른쪽, x: 0.175~0.525, y: 0~1.0 → y=앞, x=오른쪽)
+        rx1 = int(cx + self.length_y_rotary_min * scale)
+        ry1 = int(cy + self.length_x_rotary * scale)
+        rx2 = int(cx + self.length_y_rotary_max * scale)
+        ry2 = cy
+        cv2.rectangle(img, (rx1, ry1), (rx2, ry2), (0, 0, 255), 1)  # Magenta
+        
         # 로봇 위치 표시
         cv2.circle(img, (cx, cy), 3, (0, 0, 255), -1)
         cv2.imshow("Lidar View", img)
@@ -163,11 +171,12 @@ class PerLidar:
     def processing(self):
         try:
             points = self.calculate_xy_coordinates() # 좌표계 환산
-            front_pts, left_pts, right_pts, front_pts_near = self.divide_ROI(points)
+            front_pts, left_pts, right_pts, front_pts_near, rotary_pts = self.divide_ROI(points)
             obstacles = self.decide_obstacle((left_pts,front_pts,right_pts,front_pts_near))
-            obstacles.append(self.front_length(front_pts))
-            
+            obstacles.append(self.decide_ROI_point_mean(rotary_pts))
+            # print(f"{self.decide_ROI_point_mean(rotary_pts)}")
             self.pub_lidar_info(obstacles)
+            self.view_obstacle_with_ROI(points)
         except Exception as e:
             pass
             

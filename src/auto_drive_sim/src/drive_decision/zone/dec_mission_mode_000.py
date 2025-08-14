@@ -181,5 +181,4 @@ class DecLaneMode_000:
             return
 
         # 기본 차선 주행
-        mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-        self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+        self.DecLaneCurvature.decision()

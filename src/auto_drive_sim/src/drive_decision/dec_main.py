@@ -109,18 +109,22 @@ class DecMain:
             data = json.loads(msg.data)
             self.left_obstacle, self.front_obstacle, self.right_obstacle = data[0],data[1],data[2]
             self.front_near_obstacle = data[3]
-            self.front_obstacle_length = data[4]
+            self.rotary_obstacle_length = data[4]
             self.DecLaneMode_001.set_lidar_info(self.left_obstacle, self.front_obstacle, self.right_obstacle,self.front_obstacle_length)
             self.DecLaneMode_000.set_front_near_obstacle(self.front_near_obstacle)
+            self.DecLaneMode_001.set_rotary_obstacle_length(self.rotary_obstacle_length)
             # print(f"self.front_obstacle_length {self.front_obstacle_length}")
         except Exception as e:  
             print("복원 실패:", e)
     def CB_camera_info(self,msg):
         try:
             data = json.loads(msg.data)
-            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane, self.lane_mode = data[0],data[1],data[2],data[3],data[4], data[5]
+            self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = data[0],data[1],data[2],data[3],data[4]
+            self.lane_mode = data[5]
+            self.is_out_rotary = data[6]
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
+            self.DecLaneMode_001.set_is_out_rotary(self.is_out_rotary)
             self.DecLaneMode_003.set_camera_info(self.stop_line)
         except Exception as e:
             print("복원 실패:", e)
@@ -154,7 +158,7 @@ class DecMain:
         해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
         """
         rate = rospy.Rate(90)
-        self.mission_mode = 1  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.kill_slim_mover()
         self.start_flag = True
         while not rospy.is_shutdown():
@@ -171,7 +175,7 @@ class DecMain:
                     if result:
                         self.mission_mode = 2
                 elif self.mission_mode == 2:
-                    # print(f"mode {self.mission_mode}")
+                    print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
                     if result:
                         self.mission_mode = 3
@@ -180,13 +184,11 @@ class DecMain:
                     self.DecLaneMode_003.handle_zone_goal(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")
-                    mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-                    self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+                    self.DecLaneCurvature.decision()
             except Exception as e:
                 rospy.logerr("어떤 값이 존재하지 않습니다.: %s", e)
-                return
-                    # self.check_timer.start()
-                    # self.check_timer.check()
+                
+
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
             rate.sleep()
             

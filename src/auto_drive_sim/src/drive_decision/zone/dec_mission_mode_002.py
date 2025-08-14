@@ -40,9 +40,8 @@ class DecLaneMode_002:
         sleep(time)
     def handle_zone_mission5(self,stop_line):
         if self.pass_mission5_flag:
-            mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
-            # return True
+            self.DecLaneCurvature.decision(3)
+            return True
         elif self.stop_mission5_flag and self.is_to_go_traffic:
             print(f"movemove")
             steer = 0.5
@@ -67,6 +66,5 @@ class DecLaneMode_002:
             self.stop_time(0)
         else:
             print(f"out")
-            mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-            self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+            self.DecLaneCurvature.decision(3)
         return False

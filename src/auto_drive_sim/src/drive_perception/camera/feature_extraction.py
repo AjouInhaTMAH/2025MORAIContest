@@ -67,3 +67,16 @@ class LaneFeatureExtractor:
             return "right"
         else:
             return self.current_lane  # 변화 없으면 유지
+        
+        
+    def detect_out_rotary(self,yellow_bin_img):
+        img = yellow_bin_img
+        h, w = img.shape[:2]
+        # 로타리 전용 ROI (필요 시 비율 조정)
+        x1, x2 = int(0.68 * w), w
+        y1, y2 = 0, int(0.42* h )
+        roi = img[y1:y2, x1:x2]
+        yellow_count = int(cv2.countNonZero(roi))
+        return yellow_count > 0
+
+            

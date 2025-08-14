@@ -80,8 +80,8 @@ class PerCamera:
             self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
             self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
             self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
-            
-            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
+            is_out_rotary = self.LaneFeatureExtractor.detect_out_rotary(yellow_bin_img)
+            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane,is_out_rotary]           
             self.pub_cam_info(dataset)
             
             self.view_cam()

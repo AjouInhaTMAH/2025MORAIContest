@@ -26,7 +26,7 @@ class SlidingWindow:
         self.nonzerox = None
         self.left_blocked_flag = 0
         self.right_blocked_flag = 0
-        self.alpha = 1
+        self.alpha = 0.8
         
         self.left_lane_start = None
         self.left_lane_end = None
@@ -44,8 +44,7 @@ class SlidingWindow:
 
     def sliding_window_lane_calculation(self, x_current, y_current, prev_margin, x_prev,
                                         blocked_flag, binary_img, is_left_lane,
-                                        other_x = None, min_sep = 0,color=(0, 255, 0)):
-
+                                        other_x=None, min_sep=0, color=(0, 255, 0)):
         flag = blocked_flag
 
         win_y_low = y_current - self.window_height // 2
@@ -95,29 +94,24 @@ class SlidingWindow:
 
         return x_current, y_current, flag, prev_margin, x_prev
 
-    def sliding_window_adaptive(self,binary_img, nwindows=15, margin=80, minpix=100):
-        # margin=80
-        #margin= 75
-
+    def sliding_window_adaptive(self, binary_img, nwindows=12, margin=80, minpix=100):
         binary_img_color = cv2.cvtColor(binary_img, cv2.COLOR_GRAY2BGR)
-        #histogram = np.sum(binary_img[binary_img.shape[0]//2:, :], axis=0)
+
         self.left_blocked_flag = 0
         self.right_blocked_flag = 0
-        self.left_lanes =[]
-        self.right_lanes =[]
-        
+        self.left_lanes = []
+        self.right_lanes = []
+
         self.margin = margin
         self.minpix = minpix
-        #self.midpoint = histogram.shape[0] // nwindows
         self.left_lane_start = 160
-        self.right_lane_start = 480 #480
-
+        self.right_lane_start = 480
 
         self.window_height = binary_img.shape[0] // nwindows
         self.nonzero = binary_img.nonzero()
         self.nonzeroy = np.array(self.nonzero[0])
         self.nonzerox = np.array(self.nonzero[1])
-        
+
         prev_left_margin = margin
         prev_right_margin = margin
 
@@ -129,21 +123,21 @@ class SlidingWindow:
         rightx_prev = self.right_lane_start
         righty_current = binary_img.shape[0] - self.window_height // 2
 
-        for window in range(nwindows):
-            # 윈도우 범위 (적응형 이동)
-            # print(f"rightx_current {rightx_current}")
-            if self.left_blocked_flag < 8:
+        for _ in range(nwindows):
+            # 왼쪽 트랙 먼저 갱신
+            if self.left_blocked_flag < 7:
                 leftx_current, lefty_current, self.left_blocked_flag, prev_left_margin, leftx_prev = \
                     self.sliding_window_lane_calculation(
                         leftx_current, lefty_current, prev_left_margin, leftx_prev,
                         self.left_blocked_flag, binary_img_color, True,
                         other_x=rightx_current, min_sep=self.min_sep, color=(0, 255, 0))
-                                                                                                            
-            if self.right_blocked_flag < 8:
-                rightx_current, righty_current, self.right_blocked_flag, prev_right_margin, rightx_prev  = \
+
+            # 오른쪽 트랙 갱신
+            if self.right_blocked_flag < 7:
+                rightx_current, righty_current, self.right_blocked_flag, prev_right_margin, rightx_prev = \
                     self.sliding_window_lane_calculation(
                         rightx_current, righty_current, prev_right_margin, rightx_prev,
                         self.right_blocked_flag, binary_img_color, False,
                         other_x=leftx_current, min_sep=self.min_sep, color=(255, 0, 0))
-                    
+
         return binary_img_color, self.left_lanes, self.right_lanes
