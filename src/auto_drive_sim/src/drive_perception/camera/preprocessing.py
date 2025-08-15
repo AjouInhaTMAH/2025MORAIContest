@@ -55,3 +55,24 @@ class CameraPreprocessor:
         white_bin_img[white_grayed_img>50] = 255
         # cv2.imwrite("bin_img.png", bin_img) # 저장하기 위한 코드 
         return yellow_bin_img,white_bin_img
+
+    def BEV_img_warp_rotary(self,filtered_img,y,x):
+        delta = 25
+        src_point1 = [-delta,480]
+        # src_point2 = [285,260] # 180
+        # src_point3 = [x-285,260] # 180
+        src_point2 = [291,260] # 180
+        src_point3 = [x-291,260] # 180
+        src_point4 = [x+delta,480]
+        src_points = np.float32([src_point1,src_point2,src_point3,src_point4])
+        
+        dst_point1 = [x//8,480]
+        dst_point2 = [x//8,0]
+        dst_point3 = [x//8*7,0]
+        dst_point4 = [x//8*7,480]
+        dst_points = np.float32([dst_point1,dst_point2,dst_point3,dst_point4])
+        
+        matrix = cv2.getPerspectiveTransform(src_points,dst_points)
+        warped_img = cv2.warpPerspective(filtered_img,matrix,[x,y])
+        # cv2.imwrite("warped_img.png", warped_img) # 저장하기 위한 코드
+        return warped_img     

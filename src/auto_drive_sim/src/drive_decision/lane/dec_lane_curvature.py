@@ -199,12 +199,12 @@ class DecLaneCurvature:
                 self.center_index = right_index - self.LANE_WIDTH_PIXELS // 2  # 가상의 중심선
                 # self.center_index -= 55
                 self.center_index -= 35
-                print(f"self.center_index111 {self.center_index}")
+                # print(f"self.center_index111 {self.center_index}")
             else:
                 left_index = (left_lane[0][0] + left_lane[-1][0]) // 2
                 self.center_index = left_index + self.LANE_WIDTH_PIXELS // 2  # 가상의 중심선
                 self.center_index -= 35
-                print(f"self.center_index222 {self.center_index}")
+                # print(f"self.center_index222 {self.center_index}")
             return left_lane, []
         elif mode == "follow_right_lane":
             if not right_lane:

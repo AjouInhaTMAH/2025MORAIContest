@@ -40,19 +40,22 @@ class PerLidar:
         
         self.length_x_front_rotary = -0.6
         
-        self.length_x_front_near = -1.25
+        self.length_x_front_near = -1.4
         self.length_y_front_near = 0.05
         
         self.length_x_left = -0.8
-        self.length_y_left_min = -0.525
+        # self.length_y_left_min = -0.525
+        self.length_y_left_min = -0.325
         self.length_y_left_max = -0.175
         
-        self.length_x_right = -1.3
+        # self.length_x_right = -1.3
+        self.length_x_right = -1.0
         self.length_y_right_min = 0.175
         self.length_y_right_max = 0.55
         
-        self.length_x_rotary = -1.0
-        self.length_y_rotary_min = -0.525
+        self.length_x_rotary = -1.3
+        # self.length_y_rotary_min = -0.525
+        self.length_y_rotary_min = -0.7
         self.length_y_rotary_max = 0.175
         
     def CB_lidar_raw(self, msg):

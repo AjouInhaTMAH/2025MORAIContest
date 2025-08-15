@@ -31,6 +31,7 @@ catkin_install_python(PROGRAMS
   src/drive_decision/dec_main.py
 
   src/drive_perception/camera/per_camera.py
+  src/drive_perception/camera/per_camera_rotary.py
   src/drive_perception/per_lidar.py
   src/drive_perception/per_nav.py
   src/drive_perception/per_traffic.py

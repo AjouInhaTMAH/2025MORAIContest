@@ -17,7 +17,7 @@ if parent_dir not in sys.path:
 
 # ---- 프로젝트 의존 ----
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_curvature
+from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
 
 MAX_Y = 1
 
@@ -37,7 +37,7 @@ class DecLaneMode_000:
     def init_mission2_3(self):
         # 공통 상태
         self.front_near_obstacle = False
-        self.lane_mode     = "right"
+        self.current_lane     = "right"
         self.avoid_side       = None
         self.in_avoid_mode    = False
         self.dynamic_obs_flag = False
@@ -51,9 +51,6 @@ class DecLaneMode_000:
         self.stopline_cmd         = (0.5, 0)  # (steer, speed)
         self.stopline_threshold_y = 50
 
-        # mission mode 변경
-        self.check_finish_mode2_flag = False
-        self.check_time_finish_flag = rospy.get_time()
         # 회피 상태
         self.waypoint_idx   = -1
         self.last_time      = 0.0
@@ -61,15 +58,13 @@ class DecLaneMode_000:
         
         # 플랜 (예: 정지선 처리용)
         self.thick_plan = {
-            "insert_right_line": {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
-            1: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.5},
-            2: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.5},
-            "default" : {"type": "steer_fixed", "steer": 0.5, "speed": 1000, "duration": 0.5}
-            # "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duration": 0.0}
+            1: {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+            2: {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+            "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duration": 0.0}
         }
 
-    def set_lane_mode(self, lane: str):
-        self.lane_mode = lane
+    def set_current_lane(self, lane: str):
+        self.current_lane = lane
 
     def set_dynamic_obs_flag(self, flag: bool):
         self.dynamic_obs_flag = flag
@@ -83,20 +78,18 @@ class DecLaneMode_000:
             y_val = stop_line[MAX_Y]
             rospy.loginfo(f"[DBG] stop_line_y={y_val}")
         else:
-            # rospy.loginfo(f"[DBG] stop_line 구조가 예상과 다릅니다: {stop_line}")
-            pass
+            rospy.loginfo(f"[DBG] stop_line 구조가 예상과 다릅니다: {stop_line}")
 
         if y_val is not None and y_val > self.stopline_threshold_y:
             if not self.stopline_seen_once and not self.stopline_active:
                 # 이번에 적용할 회차 = 지금까지 완료한 수 + 1
                 next_idx = self.count_stopsline + 1
-                lane_lower = str(self.lane_mode).lower()
-                print(f"self.lane_mode {self.lane_mode}")
-                print(f"lane_lower {lane_lower}")
+                lane_lower = str(self.current_lane).lower()
+
                 # ✅ 규칙: 첫 번째 정지선 + 현재 차선이 left → thick_plan[1] 강제
-                if lane_lower == "left":
-                    plan = self.thick_plan.get("insert_right_line")
-                    chosen_key = "insert_right_line"
+                if next_idx == 1 and lane_lower == "left":
+                    plan = self.thick_plan.get(1) or self.thick_plan.get("1")
+                    chosen_key = 1
                 else:
                     # 기본 선택 로직 (회차키 → 문자열키 → default)
                     plan = (
@@ -107,7 +100,7 @@ class DecLaneMode_000:
                     chosen_key = next_idx if plan is not None else "default"
 
                 rospy.loginfo(
-                    f"[STOPLINE] lane={self.lane_mode}, next_idx={next_idx}, chosen_key={chosen_key}, keys={list(self.thick_plan.keys())}"
+                    f"[STOPLINE] lane={self.current_lane}, next_idx={next_idx}, chosen_key={chosen_key}, keys={list(self.thick_plan.keys())}"
                 )
 
                 if plan and plan.get("type") == "steer_fixed":
@@ -143,7 +136,7 @@ class DecLaneMode_000:
         if self.front_near_obstacle or self.in_avoid_mode:
             # 
             if not self.in_avoid_mode:
-                self.avoid_side     = "left" if self.lane_mode == "right" else "right"
+                self.avoid_side     = "left" if self.current_lane == "right" else "right"
                 self.in_avoid_mode  = True
                 self.obs_flag       = True
                 self.waypoint_idx   = 0
@@ -160,15 +153,15 @@ class DecLaneMode_000:
 
             elif self.waypoint_idx == 1:
                 steer, speed = (0.1 if self.avoid_side == "left" else 0.9), 900
-                self.sleep_duration = 0.55
+                self.sleep_duration = 0.5
 
             elif self.waypoint_idx == 2:
                 steer, speed = (0.9 if self.avoid_side == "left" else 0.1), 1200
-                self.sleep_duration = 0.6
+                self.sleep_duration = 0.55
 
             elif self.waypoint_idx == 3:
                 steer, speed = 0.5, 600
-                self.sleep_duration = 0.1
+                self.sleep_duration = 0.5
 
             elif self.waypoint_idx == 4:
                 self.in_avoid_mode = False
@@ -192,7 +185,6 @@ class DecLaneMode_000:
     # 메인: 병렬 감지 + 우선순위 합성
     # ---------------------------
     def handle_zone_mission2_3(self, stop_line):
-        # print(f"self.lane_mode {self.lane_mode}")
         now = rospy.get_time()
 
         # 병렬 업데이트 (블로킹 없음)
@@ -211,7 +203,7 @@ class DecLaneMode_000:
             self.waypoint_idx = -1
             # publish & return
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
-            return False
+            return
 
         elif self.dynamic_obs_flag == "stop_flag":
             steer, speed = 0.5, 0
@@ -222,27 +214,18 @@ class DecLaneMode_000:
             self.stop_hold_until = max(getattr(self, "stop_hold_until", 0.0), now + 1.0)
             # publish & return
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
-            return False
+            return
 
         if avoid_on:
             steer, speed = avoid_cmd
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
-            return False
+            return
 
-        # if self.stopline_active and self.count_stopsline <= 2:
         if self.stopline_active and self.count_stopsline <= 2:
             steer, speed = self.stopline_cmd
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
-            return False
-        elif self.stopline_active and self.count_stopsline > 2:
-            pass
-        if self.count_stopsline == 4 and not self.check_finish_mode2_flag:
-            self.check_finish_mode2_flag = True
-            self.check_time_finish_flag = rospy.get_time() + 11
-        if self.check_finish_mode2_flag and self.check_time_finish_flag < now:
-            return True
+            return
+
         # 기본 차선 주행
-        self.DecLaneCurvature.decision(3)
-        return False
-        # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
-        # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
+        mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
+        self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)

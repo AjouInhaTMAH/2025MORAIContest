@@ -59,9 +59,13 @@ class LaneFeatureExtractor:
         # cv2.waitKey(1)
 
         threshold = 100
-        if left_yellow_count > threshold and left_yellow_count > right_white_count:
+        # print(f"self.current_lane {self.current_lane}")
+        # print(f"left_yellow_count {left_yellow_count}  right_white_count {right_white_count} ")
+        if left_yellow_count > threshold:
+            self.current_lane = "left"
             return "left"
         elif right_white_count > threshold:
+            self.current_lane = "right"
             return "right"
         else:
             return self.current_lane  # 변화 없으면 유지

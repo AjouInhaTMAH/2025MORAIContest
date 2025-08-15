@@ -50,13 +50,13 @@ class DecLaneMode_001:
         self.CtrlMotorServo.pub_move_motor_servo(0, 0.5)
         rospy.sleep(time)
     
-    def out_rotray_not_obs(self):
-        start_time = rospy.Time.now().to_sec()
+    def out_rotray_hardcoding(self):
+        start_time = rospy.get_time()
         turn_left_time = 0.6
         turn_right_time = 1.4
         total_time = turn_left_time + turn_right_time
-        while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
-            now = rospy.Time.now().to_sec()
+        while rospy.get_time() - start_time < total_time and not rospy.is_shutdown():
+            now = rospy.get_time()
             speed = 800
             if  now - start_time >= turn_left_time: 
                 self.CtrlMotorServo.pub_move_motor_servo(speed,1)
@@ -86,6 +86,7 @@ class DecLaneMode_001:
             speed = 800
             steer = 0.09
             if self.is_out_rotary:
+                print(f"detect_yellow")
                 return
             if self.rotary_obstacle_length != []:
                 error_x = x_target + self.rotary_obstacle_length[0]
@@ -103,30 +104,29 @@ class DecLaneMode_001:
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
             # print(f"speed {speed}")
     def go_out_of_rotary(self):
-        start_time = rospy.Time.now().to_sec()
-        turn_left_time = 0.25
-        turn_right_time = 1.4
-        total_time = turn_left_time + turn_right_time
-        while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
-            now = rospy.Time.now().to_sec()
-            speed = 1200
-            # print(f"speed {speed}")
-            if  now - start_time >= turn_right_time: 
-                self.CtrlMotorServo.pub_move_motor_servo(speed,0)
-            else :
+        start_time = rospy.get_time()
+        turn_left_time = 0.15
+        turn_right_time = 1.3
+        total_time = turn_left_time + turn_right_time 
+        while rospy.get_time() - start_time < total_time and not rospy.is_shutdown():
+            now = rospy.get_time()
+            speed = 800
+            if  now - start_time >= turn_left_time: 
                 self.CtrlMotorServo.pub_move_motor_servo(speed,1)
+            elif now - start_time >= 0.0:
+                self.CtrlMotorServo.pub_move_motor_servo(speed,0.1)
             
-    def out_rotray_obs(self):
+    def out_rotray_followingCar(self):
         self.spin_rotary()
         self.go_out_of_rotary()
 
                 
     def inter_rotary(self):
-        start_time = rospy.Time.now().to_sec()
+        start_time = rospy.get_time()
         rate = rospy.Rate(80)  # 50Hz 루프, 콜백 계속 처리 가능
         total_time = 0.59
-        while rospy.Time.now().to_sec() - start_time < total_time and not rospy.is_shutdown():
-            now = rospy.Time.now().to_sec()
+        while rospy.get_time() - start_time < total_time and not rospy.is_shutdown():
+            now = rospy.get_time()
             if self.obs_now and now - start_time >= 0.25:
                 self.CtrlMotorServo.pub_move_motor_servo(2400, 1)
                 total_time = 0.64
@@ -138,25 +138,33 @@ class DecLaneMode_001:
         # 240 ~260
     def handle_zone_mission4(self,stop_line):
                 # 첫 진입 시각 기록
+        # print(f"start")
+        # self.spin_rotary()
+        # self.go_out_of_rotary()
+        # print(f"end")
+        # self.stop_time(100)
+        # return  True
         if self.start_time_mi4 is None:
-            self.start_time_mi4 = rospy.Time.now().to_sec()
-        elapsed = rospy.Time.now().to_sec() - self.start_time_mi4
+            self.start_time_mi4 = rospy.get_time()
+        elapsed = rospy.get_time() - self.start_time_mi4
         enable_stopline_check = elapsed >= 7.5  # 5초 지나야 stop_line 검사
         # enable_stopline_check = False  # 5초 지나야 stop_line 검사
-        
+        # print(f"enable_stopline_check {enable_stopline_check}")
         if self.mi4_out_flag:
             # print(f"5")
-            self.stop_time(0)
             self.DecLaneCurvature.set_speed(700,1200)
             self.DecLaneCurvature.decision()
             return True
         elif self.mi4_in_flag:
+            print(f" self.rotary_obstacle_length { self.rotary_obstacle_length}")
+            self.CtrlMotorServo.pub_move_motor_servo(400,0.3)
+            rospy.sleep(0.15)
             if self.rotary_obstacle_length == []:
-                print(f"obs")
-                self.out_rotray_not_obs()
+                print(f"go_out hardcoding")
+                self.out_rotray_hardcoding()
             else:
-                print(f"obs")
-                self.out_rotray_obs()
+                print(f"go_out following car")
+                self.out_rotray_followingCar()
             self.mi4_out_flag = True
             
         elif self.mi4_stop_flag:
@@ -184,6 +192,9 @@ class DecLaneMode_001:
         else:
             # print(f"1")
             self.DecLaneCurvature.decision(0)
+        # else:
+        #     self.DecLaneCurvature.set_speed(400,400)
+        #     self.DecLaneCurvature.decision()
         return False
         # print(f"??? {time() - start}")
     def check_obstacle_rotary(self):

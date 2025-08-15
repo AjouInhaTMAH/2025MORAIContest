@@ -58,6 +58,7 @@ class DecMain:
             print(f"❌ 노드 {node_name} 종료 실패 (이미 종료되었거나 존재하지 않음)")
     def init_pubSub(self):
         rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
+        rospy.Subscriber("/perception/camera/rotary", String, self.CB_camera_rotary_info, queue_size=1)
         rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
         rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info, queue_size=1)
         rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
@@ -121,11 +122,17 @@ class DecMain:
             data = json.loads(msg.data)
             self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = data[0],data[1],data[2],data[3],data[4]
             self.lane_mode = data[5]
-            self.is_out_rotary = data[6]
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
-            self.DecLaneMode_001.set_is_out_rotary(self.is_out_rotary)
             self.DecLaneMode_003.set_camera_info(self.stop_line)
+        except Exception as e:
+            print("복원 실패:", e)
+    def CB_camera_rotary_info(self,msg):
+        try:
+            data = json.loads(msg.data)
+            self.is_out_rotary = data[0]
+            self.DecLaneMode_001.set_is_out_rotary(self.is_out_rotary)
+            # print(f"self.is_out_rotary {self.is_out_rotary}")
         except Exception as e:
             print("복원 실패:", e)
     def CB_dynamic_obs(self, msg):
@@ -167,20 +174,22 @@ class DecMain:
                 continue
             try:
                 if self.mission_mode == 0:
-                    # print(f"mode {self.mission_mode}")
-                    self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
+                    print(f"mode {self.mission_mode}")
+                    result = self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
+                    if result:
+                        self.mission_mode = 1
                 elif self.mission_mode == 1:
-                    # print(f"mode {self.mission_mode}")
+                    print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
                     if result:
                         self.mission_mode = 2
                 elif self.mission_mode == 2:
-                    # print(f"mode {self.mission_mode}")
+                    print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
                     if result:
                         self.mission_mode = 3
                 elif self.mission_mode == 3:
-                    # print(f"mode {self.mission_mode}")
+                    print(f"mode {self.mission_mode}")
                     self.DecLaneMode_003.handle_zone_goal(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")
