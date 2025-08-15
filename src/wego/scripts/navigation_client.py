@@ -7,6 +7,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.srv import GetPlan
 from morai_msgs.msg import ObjectStatusList
+from std_msgs.msg import Bool
 
 class NavigationClient():
     def __init__(self):
@@ -25,8 +26,8 @@ class NavigationClient():
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        self.final_destination = (11.05429565916404, -4.0502248616531675, 0.6822950037242963, 0.7310769644113145)  # ← heading(w) 추가해야함!
-
+        # self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
+        self.final_destination = (10.798598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
 
         # 4x4 transform matrix: ObjectInfo → map
         self.T_map_from_objectinfo = np.array([[ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
@@ -41,7 +42,7 @@ class NavigationClient():
         rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.pose_callback)
         rospy.Subscriber("/delivery_object", ObjectStatusList, self.object_callback)
         rospy.Timer(rospy.Duration(0.1), self.check_distance)
-
+        self.pub_start_mission2And3 = rospy.Publisher('/start/mission_zero', Bool, queue_size=10)
     def transform_to_map(self, x, y, z=0.0):
         pt = np.array([x, y, z, 1.0])  # Homogeneous coordinates
         pt_map = self.T_map_from_objectinfo @ pt
@@ -176,6 +177,7 @@ class NavigationClient():
             self.goal_sent = True
             rospy.loginfo(f"Sent goal {self.goal_index + 1}/{len(self.goal_list)}")
         else:
+            self.pub_start_mission2And3.publish(True)
             rospy.loginfo("🎉 All goals completed.")
             rospy.signal_shutdown("Navigation complete.")
 

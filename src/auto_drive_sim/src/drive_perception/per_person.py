@@ -31,36 +31,61 @@ class PerPerson:
         self.init_model()
         self.init_timer()
     def init_pubSub(self):
-        self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw)
-        self.pub = rospy.Publisher("/person_bbox", String, queue_size=10)
+        self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
+        self.pub = rospy.Publisher("/person_bbox", String, queue_size=1)
     def init_model(self):
         self.bridge = CvBridge()
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s", force_reload=False)
         self.model.conf = 0.5  # 신뢰도 기준 설정
+        self.model.to('cuda').eval().half()
         self.img = None
+        
+         # --------------- 동적 장애물 상태 ---------------
+         # __init__ 안 어디 적당히:
+        self.frame_w = rospy.get_param("~frame_width", 640)
+        self.frame_h = rospy.get_param("~frame_height", 480)
+        self.center_margin_ratio = rospy.get_param("~center_margin_ratio", 0.25)  # 중앙폭 20%
+        self.warn_height_ratio = rospy.get_param("~warn_height_ratio", 0.10)      # 15% 이상 감속
+        self.stop_height_ratio = rospy.get_param("~stop_height_ratio", 0.15)      # 20% 이상 정지
+        self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)   # s
+        self.dynamic_obs_flag = "none"  # 'none' | 'slow_flag' | 'stop_flag'
+        self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)  # [ADD] YOLO 타임아웃
+        self.stop_hold_until = 0.0  # [ADD] 정지 유지(홀드) 타임스탬프
+        
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerPerson")
 
     def CB_cam_raw(self, msg):
         self.img = msg
+        self.processing()
     
     def pub_person_info(self,data):
         json_str = json.dumps(data)
         self.pub.publish(json_str)
-        # print(f"pub {data}")
     
     def detect_obstacle(self,data):
         center_x   = (data[0] + data[2]) / 2.0
         box_height = data[3] - data[1]
-        frame_width, frame_height = 640, 480
-        margin = frame_width * 0.15 / 2.0
-        center_min = frame_width/2.0 - margin
-        center_max = frame_width/2.0 + margin
-        HEIGHT_THRESHOLD = 0.2 * frame_height
-        if (center_min <= center_x <= center_max) and (box_height > HEIGHT_THRESHOLD):
-            return True
+        
+        # 중앙 영역 유지 (비율 기반)
+        margin_half = self.frame_w * self.center_margin_ratio * 0.5
+        center_min  = self.frame_w/2.0 - margin_half
+        center_max  = self.frame_w/2.0 + margin_half
+        in_center   = (center_min <= center_x <= center_max)
+
+        h_ratio = box_height / float(self.frame_h)
+
+        # ★ 순서: stop 먼저 → slow
+        if in_center and h_ratio >= self.stop_height_ratio:
+            self.dynamic_obs_flag = "stop_flag"
+            self.last_detected_time = rospy.get_time()
+        elif in_center and h_ratio >= self.warn_height_ratio:
+            self.dynamic_obs_flag = "slow_flag"
+            self.last_detected_time = rospy.get_time()
         else:
-            return False
+            self.dynamic_obs_flag = "none"
+        return self.dynamic_obs_flag
+        # print(self.dynamic_obs_flag)
     
     def extract_dynamic_obs(self):
         try:
@@ -69,7 +94,9 @@ class PerPerson:
             rospy.logerr("❌ CV bridge error: %s", e)
             return
 
+        # self.check_timer.start()
         results = self.model(img)
+        # self.check_timer.check()
         detections = results.pandas().xyxy[0]  # pandas DataFrame
         self.detect_person_result = False
         for _, row in detections.iterrows():
@@ -94,15 +121,11 @@ class PerPerson:
         cv2.waitKey(1)
 
     def processing(self):
-        rate = rospy.Rate(40)
-        while not rospy.is_shutdown():
-            if self.img is not None:
-                # self.check_timer.start()
-                self.extract_dynamic_obs()
-                self.img = None
-                # self.check_timer.check()
-                # print(f"time {time()-start}")
-            rate.sleep()
+        try:
+            self.extract_dynamic_obs()
+        except Exception as e:
+            pass
 if __name__ == '__main__':
     node = PerPerson()
-    node.processing()   # spin 대신 processing 돌기
+    rospy.spin()
+    

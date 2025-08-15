@@ -17,16 +17,18 @@ if parent_dir not in sys.path:
 
 from time import *
 from drive_decision.ctrl import ctrl_motor_servo
-from drive_decision.lane import dec_lane_amcl, dec_lane_curvature, dec_lane_distance
+from drive_decision.lane import dec_lane_curvature
+import rospy
 MAX_Y = 1
 class DecLaneMode_002:
-    def __init__(self,CtrlMotorServo, DecLaneDistance):
+    def __init__(self,CtrlMotorServo, DecLaneCurvature):
         self.init_mission5()
-        self.init_processing(CtrlMotorServo, DecLaneDistance)
+        self.init_processing(CtrlMotorServo, DecLaneCurvature)
         
-    def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo, DecLaneDistance:dec_lane_distance.DecLaneDistance):
+    def init_processing(self, CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
+                        DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
         self.CtrlMotorServo = CtrlMotorServo
-        self.DecLaneDistance = DecLaneDistance
+        self.DecLaneCurvature = DecLaneCurvature
     def init_mission5(self):
         self.stop_mission5_flag = False
         self.pass_mission5_flag = False
@@ -38,31 +40,31 @@ class DecLaneMode_002:
         sleep(time)
     def handle_zone_mission5(self,stop_line):
         if self.pass_mission5_flag:
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            self.DecLaneCurvature.decision(3)
+            return True
         elif self.stop_mission5_flag and self.is_to_go_traffic:
-            print(f"movemove")
+            # print(f"movemove")
             steer = 0.5
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(0.5)
+            rospy.sleep(0.5)
             steer = 0.3
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(2)
+            rospy.sleep(1.5)
             steer = 0.225
             speed = 800
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
-            sleep(2)
+            rospy.sleep(2.5)
             self.pass_mission5_flag = True
-            # self.stop_time(5)
         elif self.stop_mission5_flag:
-            print(f"stopstop")
+            # print(f"stopstop")
             self.CtrlMotorServo.pub_move_motor_servo(0,0.5)
-        elif stop_line != [] and stop_line[MAX_Y] > 400:
-            print(f"2")
+        elif stop_line != [] and stop_line[MAX_Y] > 100:
+            print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
             self.stop_mission5_flag =True
             self.stop_time(0)
         else:
-            self.DecLaneDistance.chose_center_right()
-            self.DecLaneDistance.ctrl_moveByLine_right()
+            # print(f"out")
+            self.DecLaneCurvature.decision(3)
+        return False

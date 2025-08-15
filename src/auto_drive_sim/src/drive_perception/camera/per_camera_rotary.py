@@ -21,11 +21,11 @@ from utills import check_timer
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-class PerCamera:
+class PerCameraRotary:
     def __init__(self):
         # ROS 노드 초기화
-        rospy.init_node("per_camera_node")
-        print(f"PerCamera start")
+        rospy.init_node("per_camera_rotary_node")
+        print(f"PerCameraRotary start")
         self.init_pubSub()
         self.init_msg()
         self.init_processing()
@@ -33,14 +33,13 @@ class PerCamera:
 
     def init_pubSub(self):
         rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
-        self.pub = rospy.Publisher('/perception/camera', String, queue_size=1)
+        self.pub = rospy.Publisher('/perception/camera/rotary', String, queue_size=1)
     def init_msg(self):
         self.img = None
         self.bridge = CvBridge()
     def init_processing(self):
         self.CameraPreprocessor = CameraPreprocessor()
         self.LaneFeatureExtractor = LaneFeatureExtractor()
-        self.SlidingWindow = SlidingWindow()
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("per_camera_node")
 
@@ -53,15 +52,10 @@ class PerCamera:
         self.pub.publish(json_str)
         
     def view_cam(self):
-        combined_img = cv2.bitwise_or(self.white_lane_img,self.yellow_lane_img)
-        if self.stop_line != []:
-            cross_threshold = 35
-            min_y, max_y = self.stop_line
-            cross_diff = (max_y - min_y)
-            if cross_threshold < cross_diff:
-                cv2.rectangle(combined_img,[0,min_y],[self.img_x, max_y],[0,0,255],3)
-        #cv2.imshow("white_lane_img",white_lane_img)
-        cv2.imshow("lane_img",combined_img)
+        combined_img = cv2.bitwise_or(self.white_bin_img,self.yellow_bin_img)
+
+        cv2.imshow("self.yellow_bin_img",self.yellow_bin_img)
+        # cv2.imshow("lane_img",combined_img)
         # cv2.imshow("self.img",self.img)
         cv2.waitKey(1)
         # end = time()
@@ -69,20 +63,16 @@ class PerCamera:
         
     def processing(self):
         try:
+            # print(f"hi")
             self.img_y, self.img_x = self.img.shape[0:2]
-            warped_img = self.CameraPreprocessor.BEV_img_warp(self.img,self.img_y,self.img_x)
+            warped_img = self.CameraPreprocessor.BEV_img_warp_rotary(self.img,self.img_y,self.img_x)
             warped_img_hsv = cv2.cvtColor(warped_img,cv2.COLOR_BGR2HSV)
             yellow_filtered_img, white_filtered_img = self.CameraPreprocessor.detect_color_yAndw(warped_img,warped_img_hsv)
-            yellow_bin_img,white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
+            self.yellow_bin_img, self.white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
 
-            self.SlidingWindow.set_img_y(self.img_y)
-            self.stop_line, white_bin_img= self.LaneFeatureExtractor.extract_stop_line(white_bin_img,self.img_y)
-            self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
-            self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
-            self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
+            is_out_rotary = self.LaneFeatureExtractor.detect_out_rotary(self.yellow_bin_img)
             
-            # dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane,is_out_rotary]           
-            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
+            dataset = [is_out_rotary]           
             self.pub_cam_info(dataset)
             
             self.view_cam()
@@ -91,6 +81,6 @@ class PerCamera:
      
         
 if __name__ == '__main__':
-    node = PerCamera()
+    node = PerCameraRotary()
     rospy.spin()
     

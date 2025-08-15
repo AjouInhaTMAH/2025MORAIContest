@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find auto_drive_sim)/launch/slim.launch"/>
+    <include file="$(find auto_drive_sim)/launch/dec.launch"/>
+    <include file="$(find auto_drive_sim)/launch/per.launch"/>
+</launch>
