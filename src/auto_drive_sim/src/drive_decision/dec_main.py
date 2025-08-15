@@ -64,7 +64,9 @@ class DecMain:
         rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
         rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info, queue_size=1)
         rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0, queue_size=1)
-        
+               
+            
+
     def init_mission_mode(self):
         self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
         self.mission_mode = 2  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
@@ -165,16 +167,18 @@ class DecMain:
         해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
         """
         rate = rospy.Rate(90)
-        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        self.kill_slim_mover()
-        self.start_flag = True
+        # slam억제부분,,
+        # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.kill_slim_mover()
+        # self.start_flag = True
+
         while not rospy.is_shutdown():
             if not self.start_flag:
                 rate.sleep()
                 continue
             try:
                 if self.mission_mode == 0:
-                    print(f"mode {self.mission_mode}")
+                    # print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_000.handle_zone_mission2_3(self.stop_line)
                     if result:
                         self.mission_mode = 1

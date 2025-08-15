@@ -19,15 +19,17 @@ class NavigationClient():
         self.goal_list = []
         self.goal_index = 0
         self.goal_sent = False
-        self.distance_threshold = 1.0
+        self.distance_threshold = 1.1
         self.robot_x = None
         self.robot_y = None
 
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        # self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
-        self.final_destination = (10.798598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)
+        self.final_destination = (10.890767097473145, -2.894298219680786, 0.7024387324996206, 0.7130206573289453)
+        # self.final_destination = (11.318598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)  
+        # self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983) #1
+
 
         # 4x4 transform matrix: ObjectInfo → map
         self.T_map_from_objectinfo = np.array([[ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
@@ -41,8 +43,9 @@ class NavigationClient():
 
         rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.pose_callback)
         rospy.Subscriber("/delivery_object", ObjectStatusList, self.object_callback)
-        rospy.Timer(rospy.Duration(0.1), self.check_distance)
         self.pub_start_mission2And3 = rospy.Publisher('/start/mission_zero', Bool, queue_size=10)
+        rospy.Timer(rospy.Duration(0.1), self.check_distance)
+
     def transform_to_map(self, x, y, z=0.0):
         pt = np.array([x, y, z, 1.0])  # Homogeneous coordinates
         pt_map = self.T_map_from_objectinfo @ pt
@@ -96,19 +99,18 @@ class NavigationClient():
         closest_pedestrian = None
         min_ped_dist = float('inf')
 
-        # Transform and collect objects
+        # Transform and collect objects (type 판단 제거)
         for obj in msg.obstacle_list:
-            if obj.type == 2:
-                x, y, _ = self.transform_to_map(obj.position.x, obj.position.y)
-                obj.position.x = x
-                obj.position.y = y
-                objects.append(obj)
+            x, y, _ = self.transform_to_map(obj.position.x, obj.position.y)
+            obj.position.x = x
+            obj.position.y = y
+            objects.append(obj)
             if len(objects) == 2:
                 break
 
-        # Transform and find closest pedestrian
+        # Transform and find closest pedestrian (type 판단 제거)
         for ped in msg.pedestrian_list:
-            if ped.type == 0 and self.robot_x is not None:
+            if self.robot_x is not None:
                 x, y, _ = self.transform_to_map(ped.position.x, ped.position.y)
                 dx = x - self.robot_x
                 dy = y - self.robot_y
@@ -154,7 +156,7 @@ class NavigationClient():
             rospy.loginfo("🚗 경로 선택: obj1 → obj2 → ped (길이 %.2f m)" % d1)
         else:
             ordered = [obj2, obj1, ped]
-            rospy.loginfo("🚗 경로 선택: obj2 → obj1 → ped (길이 %.2f m)" % d2)
+            rospy.loginfo("🏍️ 경로 선택: obj2 → obj1 → ped (길이 %.2f m)" % d2)
 
         self.goal_list = [
             self.create_goal(o.position.x, o.position.y)
@@ -188,7 +190,11 @@ class NavigationClient():
         target = self.goal_list[self.goal_index].target_pose.pose.position
         dx = target.x - self.robot_x
         dy = target.y - self.robot_y
+        #print("target.x: ",target.x)
+        #print("target.y: ", target.y)
         distance = math.sqrt(dx**2 + dy**2)
+
+        #print("distance: ",distance)
 
         if distance < self.distance_threshold:
             rospy.loginfo(f"✅ Reached waypoint {self.goal_index + 1} (distance: {distance:.2f} m)")

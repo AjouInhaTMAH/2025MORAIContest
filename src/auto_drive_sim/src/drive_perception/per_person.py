@@ -45,7 +45,7 @@ class PerPerson:
         self.frame_w = rospy.get_param("~frame_width", 640)
         self.frame_h = rospy.get_param("~frame_height", 480)
         self.center_margin_ratio = rospy.get_param("~center_margin_ratio", 0.25)  # 중앙폭 20%
-        self.warn_height_ratio = rospy.get_param("~warn_height_ratio", 0.10)      # 15% 이상 감속
+        self.warn_height_ratio = rospy.get_param("~warn_height_ratio", 0.7)      # 15% 이상 감속
         self.stop_height_ratio = rospy.get_param("~stop_height_ratio", 0.15)      # 20% 이상 정지
         self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)   # s
         self.dynamic_obs_flag = "none"  # 'none' | 'slow_flag' | 'stop_flag'
@@ -71,7 +71,7 @@ class PerPerson:
         margin_half = self.frame_w * self.center_margin_ratio * 0.5
         center_min  = self.frame_w/2.0 - margin_half
         center_max  = self.frame_w/2.0 + margin_half
-        in_center   = (center_min <= center_x <= center_max)
+        in_center   = (center_min - 40 <= center_x <= center_max + 40)
 
         h_ratio = box_height / float(self.frame_h)
 

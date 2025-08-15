@@ -62,9 +62,11 @@ class DecLaneMode_000:
         # 플랜 (예: 정지선 처리용)
         self.thick_plan = {
             "insert_right_line": {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
-            1: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.5},
-            2: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.5},
-            "default" : {"type": "steer_fixed", "steer": 0.5, "speed": 1000, "duration": 0.5}
+            1: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
+            2: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
+            3: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.0},
+            4: {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+            "default" : {"type": "steer_fixed", "steer": 0.5, "speed": 1000, "duration": 1.5}
             # "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duration": 0.0}
         }
 
@@ -230,7 +232,7 @@ class DecLaneMode_000:
             return False
 
         # if self.stopline_active and self.count_stopsline <= 2:
-        if self.stopline_active and self.count_stopsline <= 2:
+        if self.stopline_active and (self.count_stopsline == 1 or self.count_stopsline == 2 or self.count_stopsline == 4) :
             steer, speed = self.stopline_cmd
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
