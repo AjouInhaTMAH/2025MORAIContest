@@ -180,16 +180,17 @@ class DecMain:
                         self.mission_mode = 1
                 elif self.mission_mode == 1:
                     # print(f"mode {self.mission_mode}")
+
                     result = self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
                     if result:
                         self.mission_mode = 2
                 elif self.mission_mode == 2:
-                    print(f"mode {self.mission_mode}")
+                    #print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_002.handle_zone_mission5(self.stop_line)
                     if result:
                         self.mission_mode = 3
                 elif self.mission_mode == 3:
-                    print(f"mode {self.mission_mode}")
+                    #print(f"mode {self.mission_mode}")
                     self.DecLaneMode_003.handle_zone_goal(self.stop_line)
                 else:
                     print(f"Wrong mission_mode {self.mission_mode}")
