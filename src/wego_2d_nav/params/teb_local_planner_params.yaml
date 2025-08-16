@@ -12,7 +12,7 @@ TebLocalPlannerROS:
  feasibility_check_no_poses: 5
 
  # Robot
- max_vel_x: 2.0 #3.0 #2.5      #최대 속도
+ max_vel_x: 2.5 #3.0 #2.5 #2.0 -> 2.5      #최대 속도
  max_vel_x_backwards: 1.0 
  max_vel_theta: 1.2   #0.5
  acc_lim_x: 0.7      #0.5   #최대가속도
@@ -64,7 +64,7 @@ TebLocalPlannerROS:
  enable_multithreading: True
  simple_exploration: False
  max_number_classes: 4
- roadmap_graph_no_samples: 15
+ roadmap_graph_no_samples: 30 # 15 _ 장애물의 개수가 많을 경우, 증가, 
  roadmap_graph_area_width: 5
  h_signature_prescaler: 0.5
  h_signature_threshold: 0.1

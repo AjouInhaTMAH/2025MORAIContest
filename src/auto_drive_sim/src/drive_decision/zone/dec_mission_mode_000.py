@@ -61,11 +61,17 @@ class DecLaneMode_000:
         
         # 플랜 (예: 정지선 처리용)
         self.thick_plan = {
+            # 첫 번째 정지선 + 현재 차선이 left → thick_plan의 insert_right_line 강제
             "insert_right_line": {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+
+            # 2차선 
             1: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
             2: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
-            3: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.0},
-            4: {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+            # 3: {"type": "steer_fixed", "steer": 0.5, "speed": 0, "duration": 0.0},
+            # 3번쨰에서 딜레이 처리로 개수를 한번 처리해야되는데 DURATION 이 0이여서 2번 카운트됨#
+            3: {"type": "steer_fixed", "steer": 0.5, "speed": 300, "duration": 1.0},
+            4: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.0},
+
             "default" : {"type": "steer_fixed", "steer": 0.5, "speed": 1000, "duration": 1.5}
             # "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duration": 0.0}
         }
@@ -83,22 +89,24 @@ class DecLaneMode_000:
         y_val = None
         if isinstance(stop_line, (list, tuple)) and len(stop_line) > MAX_Y:
             y_val = stop_line[MAX_Y]
-            rospy.loginfo(f"[DBG] stop_line_y={y_val}")
+            # rospy.loginfo(f"[DBG] stop_line_y={y_val}")
         else:
             # rospy.loginfo(f"[DBG] stop_line 구조가 예상과 다릅니다: {stop_line}")
             pass
 
-        if y_val is not None and y_val > self.stopline_threshold_y:
+        if y_val is not None and y_val > self.stopline_threshold_y: # 정지선 처리 부분
             if not self.stopline_seen_once and not self.stopline_active:
                 # 이번에 적용할 회차 = 지금까지 완료한 수 + 1
                 next_idx = self.count_stopsline + 1
                 lane_lower = str(self.lane_mode).lower()
-                print(f"self.lane_mode {self.lane_mode}")
-                print(f"lane_lower {lane_lower}")
-                # ✅ 규칙: 첫 번째 정지선 + 현재 차선이 left → thick_plan[1] 강제
+                print(f" --------------------------------- self.lane_mode {self.lane_mode}")
+                print(f"---------------------------------lane_lower {lane_lower}")
+                print(f" --------------------------------- NEXT INDEX / 이번회차  {next_idx}")
+                # ✅ 규칙: 정지선 + 현재 차선이 left → thick_plan[1] 강제
                 if lane_lower == "left":
                     plan = self.thick_plan.get("insert_right_line")
                     chosen_key = "insert_right_line"
+                # 정지선 + 현재 차선이 right -> next_idx, 업데이트 한 두꺼운선 기준
                 else:
                     # 기본 선택 로직 (회차키 → 문자열키 → default)
                     plan = (
@@ -232,8 +240,9 @@ class DecLaneMode_000:
             return False
 
         # if self.stopline_active and self.count_stopsline <= 2:
-        if self.stopline_active and (self.count_stopsline == 1 or self.count_stopsline == 2 or self.count_stopsline == 4) :
-            steer, speed = self.stopline_cmd
+        if self.stopline_active and (
+            self.count_stopsline == 1 or self.count_stopsline == 2 or self.count_stopsline == 4) :
+            steer, speed = self.stopline_cmd # <- 
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
         elif self.stopline_active and self.count_stopsline > 2:
