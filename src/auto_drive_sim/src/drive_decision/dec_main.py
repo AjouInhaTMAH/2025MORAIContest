@@ -64,8 +64,6 @@ class DecMain:
         rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
         rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info, queue_size=1)
         rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0, queue_size=1)
-               
-            
 
     def init_mission_mode(self):
         self.mission_mode = 3  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
@@ -126,6 +124,7 @@ class DecMain:
             self.lane_mode = data[5]
             self.DecLaneCurvature.set_camera_info(self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane)
             self.DecLaneMode_000.set_lane_mode(self.lane_mode)
+            self.DecLaneMode_001.set_lane_mode(self.lane_mode)
             self.DecLaneMode_003.set_camera_info(self.stop_line)
         except Exception as e:
             print("복원 실패:", e)
@@ -144,15 +143,12 @@ class DecMain:
             self.DecLaneMode_000.set_dynamic_obs_flag(self.dynamic_obs_flag)
         except Exception as e:
             print("복원 실패:", e)
-            
     def CB_car_nav_info(self, msg):
         self.mission_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-
     def CB_mission_0(self,msg):
         self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-        self.kill_slim_mover()
-    
-    def spin_CB(self):
+        self.kill_slim_mover()  
+    def CB_spin(self):
         rospy.spin()
 
     def processing(self):
@@ -183,7 +179,7 @@ class DecMain:
                     if result:
                         self.mission_mode = 1
                 elif self.mission_mode == 1:
-                    print(f"mode {self.mission_mode}")
+                    # print(f"mode {self.mission_mode}")
                     result = self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
                     if result:
                         self.mission_mode = 2
@@ -209,7 +205,7 @@ class DecMain:
 if __name__ == '__main__':
 
     node = DecMain()
-    cb_thread = threading.Thread(target=node.spin_CB)
+    cb_thread = threading.Thread(target=node.CB_spin)
     cb_thread.start()
     node.processing()   # spin 대신 processing 돌기
 

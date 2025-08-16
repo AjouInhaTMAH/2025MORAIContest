@@ -64,10 +64,10 @@ class DecLaneMode_000:
             "insert_right_line": {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
             1: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
             2: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.5},
-            3: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 0.0},
-            4: {"type": "steer_fixed", "steer": 0.7, "speed": 800, "duration": 1.0},
+            3: {"type": "steer_fixed", "steer": 0.3, "speed": 800, "duration": 1.0},
+            4: {"type": "steer_fixed", "steer": 0.5, "speed": 800, "duration": 1.0},
             "default" : {"type": "steer_fixed", "steer": 0.5, "speed": 1000, "duration": 1.5}
-            # "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duration": 0.0}
+            # "default" : {"type": "steer_fixed", "steer": 1.0, "speed": 1000, "duratiwon": 0.0}
         }
 
     def set_lane_mode(self, lane: str):
@@ -136,14 +136,12 @@ class DecLaneMode_000:
             self.stopline_active = False
             rospy.loginfo("[STOPLINE] end")
 
-
-
     # ---------------------------
     # 회피 상태 업데이트(비블로킹)
     # ---------------------------
     def update_avoidance(self, now: float):
         if self.front_near_obstacle or self.in_avoid_mode:
-            # 
+            print(f"front_near_obstacle")
             if not self.in_avoid_mode:
                 self.avoid_side     = "left" if self.lane_mode == "right" else "right"
                 self.in_avoid_mode  = True
@@ -240,7 +238,7 @@ class DecLaneMode_000:
             pass
         if self.count_stopsline == 4 and not self.check_finish_mode2_flag:
             self.check_finish_mode2_flag = True
-            self.check_time_finish_flag = rospy.get_time() + 11
+            self.check_time_finish_flag = rospy.get_time() + 13
         if self.check_finish_mode2_flag and self.check_time_finish_flag < now:
             return True
         # 기본 차선 주행

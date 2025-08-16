@@ -40,7 +40,7 @@ class PerLidar:
         
         self.length_x_front_rotary = -0.6
         
-        self.length_x_front_near = -1.4
+        self.length_x_front_near = -1.2
         self.length_y_front_near = 0.05
         
         self.length_x_left = -0.8
