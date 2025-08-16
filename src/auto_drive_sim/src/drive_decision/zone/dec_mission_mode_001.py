@@ -34,6 +34,8 @@ class DecLaneMode_001:
         self.count_rotary = 0
         self.start_time_mi4 = None  # 미션4 시작 시간 기록용
         self.is_out_rotary = False
+        self.change_lane_mode = False
+        self.start_time_change_lane_mode = None
         
     def init_processing(self,CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo
                         , DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
@@ -49,7 +51,9 @@ class DecLaneMode_001:
     def stop_time(self,time = 2):
         self.CtrlMotorServo.pub_move_motor_servo(0, 0.5)
         rospy.sleep(time)
-    
+    def set_lane_mode(self, lane: str):
+        self.lane_mode = lane
+
     def out_rotray_hardcoding(self):
         start_time = rospy.get_time()
         turn_left_time = 0.6
@@ -144,8 +148,24 @@ class DecLaneMode_001:
         # print(f"end")
         # self.stop_time(100)
         # return  True
+        # 7.5초 동안 왼쪽 보는 코드와 1차선이면 2차선으로 변경하기 
         if self.start_time_mi4 is None:
             self.start_time_mi4 = rospy.get_time()
+            if self.lane_mode == "left":
+                self.change_lane_mode = True
+                self.start_time_change_lane_mode = rospy.get_time()
+        if self.change_lane_mode:
+            changing = rospy.get_time() - self.start_time_change_lane_mode
+            turn_right = 0.6
+            turn_left = 0.3
+            if changing >= turn_right + turn_left:
+                self.change_lane_mode = False
+            if changing > turn_right:
+                self.CtrlMotorServo.pub_move_motor_servo(1500,0.25)
+            else:
+                self.CtrlMotorServo.pub_move_motor_servo(1500,0.75)
+            return
+                
         elapsed = rospy.get_time() - self.start_time_mi4
         enable_stopline_check = elapsed >= 7.5  # 5초 지나야 stop_line 검사
         # enable_stopline_check = False  # 5초 지나야 stop_line 검사
