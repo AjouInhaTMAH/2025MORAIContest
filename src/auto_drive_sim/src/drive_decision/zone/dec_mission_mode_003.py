@@ -19,7 +19,9 @@ from time import *
 from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
 import rospy
+SKIP_STOPLINE = 3
 MAX_Y = 1
+MISSION_MODE3 = 1
 class DecLaneMode_003:
     def __init__(self,CtrlMotorServo, DecLaneCurvature):
         self.init_goal()
@@ -71,16 +73,22 @@ class DecLaneMode_003:
         self.CtrlMotorServo.pub_move_motor_servo(1000, 0.5)
         self.count_right_hardcoding_follow += 1
         return False
-        
+    
+    def FSM_goal_01(self,stop_line):
+        return stop_line != [] and stop_line[MAX_Y] > 400
+    def FSM_goal_02(self):
+        return self.stop_right_flag
+    def FSM_goal_03(self):
+        return self.count_right_hardcoding_follow == 2
     def handle_zone_goal(self,stop_line):
         # 홀드가 아니면 의사결정
-        if self.count_right_hardcoding_follow == 2:
-            self.DecLaneCurvature.decision(1)
-        elif self.stop_right_flag:
+        if self.FSM_goal_03():
+            self.DecLaneCurvature.decision(MISSION_MODE3)
+        elif self.FSM_goal_02():
             self.right_hardcoding_follow()
-        elif stop_line != [] and stop_line[MAX_Y] > 400:
+        elif self.FSM_goal_01(stop_line):
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
             self.stop_right_flag =True
         else:
             # print(f"goal_zone")
-            self.DecLaneCurvature.decision(3)
+            self.DecLaneCurvature.decision(SKIP_STOPLINE)

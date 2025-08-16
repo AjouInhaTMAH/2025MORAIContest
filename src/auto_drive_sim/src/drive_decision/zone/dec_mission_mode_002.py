@@ -20,29 +20,39 @@ from drive_decision.ctrl import ctrl_motor_servo
 from drive_decision.lane import dec_lane_curvature
 import rospy
 MAX_Y = 1
+SKIP_STOPLINE = 3
 class DecLaneMode_002:
     def __init__(self,CtrlMotorServo, DecLaneCurvature):
         self.init_mission5()
         self.init_processing(CtrlMotorServo, DecLaneCurvature)
-        
+    def init_mission5(self):
+        self.stop_mission5_flag = False
+        self.pass_mission5_flag = False
+        self.is_to_go_traffic = False   
     def init_processing(self, CtrlMotorServo:ctrl_motor_servo.CtrlMotorServo,
                         DecLaneCurvature:dec_lane_curvature.DecLaneCurvature):
         self.CtrlMotorServo = CtrlMotorServo
         self.DecLaneCurvature = DecLaneCurvature
-    def init_mission5(self):
-        self.stop_mission5_flag = False
-        self.pass_mission5_flag = False
-        self.is_to_go_traffic = False
+
     def set_is_to_go_traffic(self,flag):
         self.is_to_go_traffic = flag
     def stop_time(self,time = 2):
         self.CtrlMotorServo.pub_move_motor_servo(0, 0.5)
         sleep(time)
+    
+    def FSM_mi5_01(self,stop_line):
+        return stop_line != [] and stop_line[MAX_Y] > 100
+    def FSM_mi5_02(self):
+        return self.stop_mission5_flag
+    def FSM_mi5_03(self):
+        return self.stop_mission5_flag and self.is_to_go_traffic
+    def FSM_mi5_04(self):
+        return self.pass_mission5_flag
     def handle_zone_mission5(self,stop_line):
-        if self.pass_mission5_flag:
-            self.DecLaneCurvature.decision(3)
+        if self.FSM_mi5_04():
+            self.DecLaneCurvature.decision(SKIP_STOPLINE)
             return True
-        elif self.stop_mission5_flag and self.is_to_go_traffic:
+        elif self.FSM_mi5_03():
             # print(f"movemove")
             steer = 0.5
             speed = 800
@@ -57,14 +67,14 @@ class DecLaneMode_002:
             self.CtrlMotorServo.pub_move_motor_servo(speed,steer)
             rospy.sleep(2.5)
             self.pass_mission5_flag = True
-        elif self.stop_mission5_flag:
+        elif self.FSM_mi5_02():
             # print(f"stopstop")
             self.CtrlMotorServo.pub_move_motor_servo(0,0.5)
-        elif stop_line != [] and stop_line[MAX_Y] > 100:
+        elif self.FSM_mi5_01(stop_line):
             print(f"stop_line[MAX_Y] {stop_line[MAX_Y]}")
             self.stop_mission5_flag =True
             self.stop_time(0)
         else:
             # print(f"out")
-            self.DecLaneCurvature.decision(3)
+            self.DecLaneCurvature.decision(SKIP_STOPLINE)
         return False

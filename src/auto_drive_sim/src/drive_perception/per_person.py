@@ -32,7 +32,7 @@ class PerPerson:
         self.init_timer()
     def init_pubSub(self):
         self.sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.CB_cam_raw, queue_size=1)
-        self.pub = rospy.Publisher("/person_bbox", String, queue_size=1)
+        self.pub = rospy.Publisher("/perception/person_bbox", String, queue_size=1)
     def init_model(self):
         self.bridge = CvBridge()
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s", force_reload=False)
@@ -50,8 +50,7 @@ class PerPerson:
         self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)   # s
         self.dynamic_obs_flag = "none"  # 'none' | 'slow_flag' | 'stop_flag'
         self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)  # [ADD] YOLO 타임아웃
-        self.stop_hold_until = 0.0  # [ADD] 정지 유지(홀드) 타임스탬프
-        
+        self.stop_hold_until = 0.0  # [ADD] 정지 유지(홀드) 타임스탬프  
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("PerPerson")
 

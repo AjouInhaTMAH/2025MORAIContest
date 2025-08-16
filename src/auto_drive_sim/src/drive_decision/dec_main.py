@@ -41,28 +41,21 @@ class DecMain:
         print(f"DecMain start")
 
         rospy.init_node('dec_main_node')
-        self.init_processing()
         self.init_pubSub()
+        self.init_processing()
         self.init_msg()
         self.init_mission_mode()
         self.init_lidar_info()
         self.init_camera_info()
         self.init_timer()
-        
-    def kill_slim_mover(self):
-        node_name = '/throttle_interpolator'
-        try:
-            subprocess.run(['rosnode', 'kill', node_name], check=True)
-            print(f"✅ 노드 {node_name} 종료 성공")
-        except subprocess.CalledProcessError:
-            print(f"❌ 노드 {node_name} 종료 실패 (이미 종료되었거나 존재하지 않음)")
+
     def init_pubSub(self):
         rospy.Subscriber("/perception/camera", String, self.CB_camera_info, queue_size=1)
         rospy.Subscriber("/perception/camera/rotary", String, self.CB_camera_rotary_info, queue_size=1)
         rospy.Subscriber("/perception/lidar", String, self.CB_lidar_info, queue_size=1)
-        rospy.Subscriber('/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info, queue_size=1)
-        rospy.Subscriber("/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
-        rospy.Subscriber("/mission_mode", Int32, self.CB_car_nav_info, queue_size=1)
+        rospy.Subscriber('/perception/is_to_go_traffic', Bool, self.CB_check_to_go_traffic_info, queue_size=1)
+        rospy.Subscriber("/perception/person_bbox", String, self.CB_dynamic_obs, queue_size=1)
+        rospy.Subscriber("/perception/mission_mode", Int32, self.CB_car_nav_info, queue_size=1)
         rospy.Subscriber('/start/mission_zero', Bool, self.CB_mission_0, queue_size=1)
 
     def init_mission_mode(self):
@@ -145,22 +138,31 @@ class DecMain:
             print("복원 실패:", e)
     def CB_car_nav_info(self, msg):
         self.mission_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
+
+    def kill_slim_mover(self):
+        node_name = '/throttle_interpolator'
+        try:
+            subprocess.run(['rosnode', 'kill', node_name], check=True)
+            print(f"✅ 노드 {node_name} 종료 성공")
+        except subprocess.CalledProcessError:
+            print(f"❌ 노드 {node_name} 종료 실패 (이미 종료되었거나 존재하지 않음)")
     def CB_mission_0(self,msg):
         self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-        self.kill_slim_mover()  
+        self.kill_slim_mover()      
     def CB_spin(self):
         rospy.spin()
 
+        
+
+
+            
     def processing(self):
         """_summary_
         현재 구역을 나누었다.
         미션 2 & 3 구역
         미션 4 구역
         미션 5 구역
-        골인 지점 경로 1
-        골인 지점 경로 2
-        이는 유동적으로 변할 수 있으므로 유의해야 한다.
-        해당 좌표는 amcl_pose를 좌표계로 imu + wheel 값을 이용해서 좌표계를 추정하는 좌표계의 위치로 구분한다.
+        골인 지점 경로 
         """
         rate = rospy.Rate(90)
         # slam억제부분,,
@@ -179,7 +181,7 @@ class DecMain:
                     if result:
                         self.mission_mode = 1
                 elif self.mission_mode == 1:
-                    # print(f"mode {self.mission_mode}")
+                    print(f"mode {self.mission_mode}")
 
                     result = self.DecLaneMode_001.handle_zone_mission4(self.stop_line)
                     if result:

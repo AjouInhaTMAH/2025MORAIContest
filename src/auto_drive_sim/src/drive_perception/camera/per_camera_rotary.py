@@ -16,10 +16,7 @@ import json
 from std_msgs.msg import String
 from drive_perception.camera.preprocessing import CameraPreprocessor
 from drive_perception.camera.feature_extraction import LaneFeatureExtractor
-from drive_perception.camera.sliding_window import SlidingWindow
 from utills import check_timer
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class PerCameraRotary:
     def __init__(self):
