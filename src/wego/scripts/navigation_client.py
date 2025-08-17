@@ -26,7 +26,14 @@ class NavigationClient():
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        self.final_destination = (10.93624210357666,  -2.423067092895508, 0.6990485231494722, 0.7150742355046376) #final_final 박았을때
+
+        # finaL -1차선 주입 시작
+        # self.final_destination = (10.595913887023926,  -2.8037235736846924, 0.7214997940791695, 0.6924146497177222) #final_final 박았을때
+        
+        
+        # findal -2차선
+        self.final_destination = (10.90624210357666,  -2.423067092895508, 0.6990485231494722, 0.7150742355046376) #final_final 살짝 위로
+        # self.final_destination = (10.93624210357666,  -2.423067092895508, 0.6990485231494722, 0.7150742355046376) #final_final 기준
 
         # self.final_destination = (10.890767097473145, -2.894298219680786, 0.7024387324996206, 0.7130206573289453)  # final 안박았을때
         # self.final_destination = (11.318598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)  

@@ -192,7 +192,8 @@ class DecLaneMode_001:
             return
                 
         elapsed = rospy.get_time() - self.start_time_mi4
-        enable_stopline_check = elapsed >= 7.5  # 5초 지나야 stop_line 검사
+        # enable_stopline_check = elapsed >= 7.5  # 5초 지나야 stop_line 검사
+        enable_stopline_check = elapsed >= 7.6  # 5초 지나야 stop_line 검사
         # enable_stopline_check = False  # 5초 지나야 stop_line 검사
         # print(f"enable_stopline_check {enable_stopline_check}")
         if self.FSM_mi4_05():

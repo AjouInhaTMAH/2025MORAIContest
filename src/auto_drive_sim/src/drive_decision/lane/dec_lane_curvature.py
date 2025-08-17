@@ -81,9 +81,8 @@ class DecLaneCurvature:
         return max(1.2, A * np.exp(-B * curvature))
     def get_steer_gain_mission_mode_3(self, curvature):
         A = 40.0  # 최대 gain
-        # B = 0.001098 # 0.002528
-        # B = 0.001298 # 0.002528
-        B = 0.001398 # 0.002528
+        # B = 0.001398 # 0.002528
+        B = 0.001350 # 0.002528
         return max(1.2, A * np.exp(-B * curvature))
     def get_base_speed(self, curvature):
         min_speed = self.min_speed

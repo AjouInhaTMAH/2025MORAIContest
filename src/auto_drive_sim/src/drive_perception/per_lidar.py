@@ -113,7 +113,7 @@ class PerLidar:
         results = []
         for region in points:
             # np.array일 경우 len(region) == 행 개수
-            is_obstacle = len(region) >= 5
+            is_obstacle = len(region) >= 4 # ** 5 -> 3 -> 4 
             results.append(is_obstacle)
         return results
     def estimate_ROI_point_mean(self,pts):
