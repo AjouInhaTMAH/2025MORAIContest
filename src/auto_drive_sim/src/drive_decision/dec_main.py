@@ -74,7 +74,6 @@ class DecMain:
         self.stop_line, self.yellow_left_lane, self.yellow_right_lane, self.white_left_lane, self.white_right_lane = [],None,None,None,None
     def init_processing(self):
         self.CtrlMotorServo = ctrl_motor_servo.CtrlMotorServo()
-        
         self.DecLaneCurvature = dec_lane_curvature.DecLaneCurvature(self.CtrlMotorServo)
         self.DecLaneMode_000 = dec_mission_mode_000.DecLaneMode_000(self.CtrlMotorServo,self.DecLaneCurvature)
         self.DecLaneMode_001 = dec_mission_mode_001.DecLaneMode_001(self.CtrlMotorServo,self.DecLaneCurvature,)
@@ -91,13 +90,17 @@ class DecMain:
         self.yellow_left_lane = None
         self.yellow_right_lane = None
         self.white_left_lane = None
-        self.white_right_lane = None 
+        self.white_right_lane = None
     def init_timer(self):
         self.check_timer = check_timer.CheckTimer("per_camera_node")
 
     def CB_check_to_go_traffic_info(self, msg):
-        self.is_to_go_traffic = msg.data
-        self.DecLaneMode_002.set_is_to_go_traffic(self.is_to_go_traffic)
+        try:
+            self.is_to_go_traffic = msg.data
+            self.DecLaneMode_002.set_is_to_go_traffic(self.is_to_go_traffic)     
+        except Exception as e:
+            print("복원 실패:", e)
+
     def CB_lidar_info(self,msg):
         try:
             data = json.loads(msg.data)
@@ -137,8 +140,10 @@ class DecMain:
         except Exception as e:
             print("복원 실패:", e)
     def CB_car_nav_info(self, msg):
-        self.mission_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-
+        try:
+            self.mission_mode = msg.data  # 예: 1, 2, 3 등의 영역 구분  
+        except Exception as e:
+            print("복원 실패:", e)
     def kill_slim_mover(self):
         node_name = '/throttle_interpolator'
         try:
@@ -147,14 +152,14 @@ class DecMain:
         except subprocess.CalledProcessError:
             print(f"❌ 노드 {node_name} 종료 실패 (이미 종료되었거나 존재하지 않음)")
     def CB_mission_0(self,msg):
-        self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
-        self.kill_slim_mover()      
+        try:
+            self.start_flag = msg.data  # 예: 1, 2, 3 등의 영역 구분  
+            self.kill_slim_mover()      
+        except Exception as e:
+            print("복원 실패:", e)
+
     def CB_spin(self):
         rospy.spin()
-
-        
-
-
             
     def processing(self):
         """_summary_
@@ -166,9 +171,9 @@ class DecMain:
         """
         rate = rospy.Rate(90)
         # slam억제부분,,
-        # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        # self.kill_slim_mover()
-        # self.start_flag = True
+        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        self.kill_slim_mover()
+        self.start_flag = True
 
         while not rospy.is_shutdown():
             if not self.start_flag:

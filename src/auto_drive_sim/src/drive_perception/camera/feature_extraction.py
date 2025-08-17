@@ -58,7 +58,7 @@ class LaneFeatureExtractor:
         # cv2.imshow("White Mask", white_mask)
         # cv2.waitKey(1)
 
-        threshold = 100
+        threshold = 9000
         # print(f"self.current_lane {self.current_lane}")
         # print(f"left_yellow_count {left_yellow_count}  right_white_count {right_white_count} ")
         if left_yellow_count > threshold:

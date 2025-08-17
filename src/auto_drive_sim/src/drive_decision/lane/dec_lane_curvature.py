@@ -75,14 +75,15 @@ class DecLaneCurvature:
         B = 0.002528 # 0.002528
         return max(1.2, A * np.exp(-B * curvature))
     def get_steer_gain_mission_mode_1(self, curvature):
-        A = 40.0  # 최대 gain
-        # B = 0.000498 # 0.002528
-        # B = 0.0001 # 0.002528
-        B = 0.000698 # 0.002528
+        A = 30.0  # 최대 gain
+        # B = 0.002528 # 0.002528
+        B = 0.005 # 0.002528
         return max(1.2, A * np.exp(-B * curvature))
     def get_steer_gain_mission_mode_3(self, curvature):
         A = 40.0  # 최대 gain
-        B = 0.000698 # 0.002528
+        # B = 0.001098 # 0.002528
+        # B = 0.001298 # 0.002528
+        B = 0.001398 # 0.002528
         return max(1.2, A * np.exp(-B * curvature))
     def get_base_speed(self, curvature):
         min_speed = self.min_speed
@@ -207,12 +208,12 @@ class DecLaneCurvature:
                 right_index = (right_lane[0][0] + right_lane[-1][0]) // 2
                 self.center_index = right_index - self.LANE_WIDTH_PIXELS // 2  # 가상의 중심선
                 # self.center_index -= 55
-                self.center_index -= 40
+                self.center_index -= 50
                 # print(f"self.center_index111 {self.center_index}")
             else:
                 left_index = (left_lane[0][0] + left_lane[-1][0]) // 2
                 self.center_index = left_index + self.LANE_WIDTH_PIXELS // 2  # 가상의 중심선
-                self.center_index -= 30
+                self.center_index -= 35
                 # print(f"self.center_index222 {self.center_index}")
             return left_lane, []
         elif mode == "follow_right_lane":
@@ -241,7 +242,7 @@ class DecLaneCurvature:
                 y_vals.append(pt[1])
 
         # 최소 데이터 개수 확인 (2개 미만이면 근사 자체가 불가능함)
-        if len(x_vals) < 4:
+        if len(x_vals) < 5:
             return 1e4  # 데이터 부족 시 직선으로 간주
 
         try:
@@ -277,15 +278,17 @@ class DecLaneCurvature:
             state, left_lane, right_lane = self.ctrl_decision()
         else:
             state, left_lane, right_lane = self.ctrl_decision()
+            print(f"state {state}")
             if state == "move_straight":
-                self.CtrlMotorServo.pub_move_motor_servo(1200,0.5)
-                rospy.sleep(3.0)
+                self.CtrlMotorServo.pub_move_motor_servo(2400,0.5)
+                rospy.sleep(1.6)
                 return
+            
         if mission_mode == MISSION_MODE3:
             self.center_index += 50
             
         curvature = self.calculate_curvature(left_lane,right_lane)
-                
+        # print(f"left_lane, right_lane {left_lane, right_lane}")
         self.ctrl_move(mission_mode, curvature, self.center_index)
 
         # rospy.loginfo(f"weight_left : {left_lane} / weight_right : {right_lane}")

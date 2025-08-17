@@ -168,7 +168,7 @@ class DecLaneMode_000:
         return self.waypoint_idx == 3
     def update_avoidance(self, now: float):
         if self.is_front_obstacle():
-            print(f"front_near_obstacle")
+            # print(f"front_near_obstacle")
             if self.is_setting_avoide_mode():
                 self.avoid_side     = "left" if self.lane_mode == "right" else "right"
                 self.in_avoid_mode  = True
@@ -250,6 +250,7 @@ class DecLaneMode_000:
             self.obs_flag     = True
             self.waypoint_idx = -1
             # publish & return
+            self.check_time_finish_flag += 0.0015
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
 
@@ -259,6 +260,7 @@ class DecLaneMode_000:
             self.obs_flag     = True
             self.waypoint_idx = -1
             # [ADD] 1초 정지 유지 예약
+            self.check_time_finish_flag += 0.003
             self.stop_hold_until = max(getattr(self, "stop_hold_until", 0.0), now + 1.0)
             # publish & return
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
@@ -275,6 +277,7 @@ class DecLaneMode_000:
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
 
+        print(f"self.check_time_finish_flag {self.check_time_finish_flag}")
         if self.is_setting_changing_mission_mode():
             self.check_finish_mode2_flag = True
             self.check_time_finish_flag = rospy.get_time() + 10

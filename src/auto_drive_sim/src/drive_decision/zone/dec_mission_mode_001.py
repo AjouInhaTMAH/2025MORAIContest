@@ -237,7 +237,8 @@ class DecLaneMode_001:
             print(f"1")
             self.DecLaneCurvature.decision(MISSION_MODE1)
         # else:
-        #     self.DecLaneCurvature.set_speed(400,400)
-        #     self.DecLaneCurvature.decision()
+        #     # self.DecLaneCurvature.set_speed(400,400)
+        #     self.DecLaneCurvature.decision(MISSION_MODE1)
+        #     # self.DecLaneCurvature.decision()
         return False
         # print(f"??? {time() - start}")
