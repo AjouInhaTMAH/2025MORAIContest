@@ -71,7 +71,7 @@ class PerPerson:
         center_min  = self.frame_w/2.0 - margin_half
         center_max  = self.frame_w/2.0 + margin_half
         # in_center   = (center_min - 40 <= center_x <= center_max)
-        in_center   = (center_min - 100 <= center_x <= center_max + 100)
+        in_center   = (center_min - 60 <= center_x <= center_max + 60) # 100
 
         h_ratio = box_height / float(self.frame_h)
 

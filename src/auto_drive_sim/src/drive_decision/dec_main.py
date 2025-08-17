@@ -171,9 +171,9 @@ class DecMain:
         """
         rate = rospy.Rate(90)
         # slam억제부분,,
-        self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
-        self.kill_slim_mover()
-        self.start_flag = True
+        # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.kill_slim_mover()
+        # self.start_flag = True
 
         while not rospy.is_shutdown():
             if not self.start_flag:

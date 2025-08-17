@@ -280,7 +280,7 @@ class DecLaneMode_000:
         print(f"self.check_time_finish_flag {self.check_time_finish_flag}")
         if self.is_setting_changing_mission_mode():
             self.check_finish_mode2_flag = True
-            self.check_time_finish_flag = rospy.get_time() + 10
+            self.check_time_finish_flag = rospy.get_time() + 11.5
         if self.is_checking_changing_mission_mode(now):
             return True
         # 기본 차선 주행
