@@ -26,13 +26,16 @@ class NavigationClient():
         self.delivery_objects = [None, None]
         self.delivery_goal = [None]
         self.route_planned = False
-        self.final_destination = (10.890767097473145, -2.894298219680786, 0.7024387324996206, 0.7130206573289453)
+        self.final_destination = (10.93624210357666,  -2.423067092895508, 0.6990485231494722, 0.7150742355046376) #final_final 박았을때
+
+        # self.final_destination = (10.890767097473145, -2.894298219680786, 0.7024387324996206, 0.7130206573289453)  # final 안박았을때
         # self.final_destination = (11.318598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983)  
         # self.final_destination = (10.918598175048828, -3.1679697036743164, 0.7024387324996206, 0.7117442146475983) #1
 
 
         # 4x4 transform matrix: ObjectInfo → map
-        self.T_map_from_objectinfo = np.array([[ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
+        self.T_map_from_objectinfo = np.array([
+        [ 6.12323400e-17 ,-1.00000000e+00 ,-0.00000000e+00 , 5.39406395e+00],
         [ 1.00000000e+00, 6.12323400e-17 , 0.00000000e+00, -4.38229799e+00],
         [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00, -3.10335420e-02],
         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]]
@@ -41,8 +44,8 @@ class NavigationClient():
         rospy.wait_for_service('/move_base/make_plan')
         self.make_plan = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
-        rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.pose_callback)
-        rospy.Subscriber("/delivery_object", ObjectStatusList, self.object_callback)
+        rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.CB_pose)
+        rospy.Subscriber("/delivery_object", ObjectStatusList, self.CB_object)
         self.pub_start_mission2And3 = rospy.Publisher('/start/mission_zero', Bool, queue_size=10)
         rospy.Timer(rospy.Duration(0.1), self.check_distance)
 
@@ -85,11 +88,11 @@ class NavigationClient():
             rospy.logerr("Failed to call make_plan: %s" % e)
             return float('inf')
 
-    def pose_callback(self, msg):
+    def CB_pose(self, msg):
         self.robot_x = msg.pose.pose.position.x
         self.robot_y = msg.pose.pose.position.y
 
-    def object_callback(self, msg):
+    def CB_object(self, msg):
         if self.route_planned:
             return
 
