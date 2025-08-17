@@ -47,6 +47,7 @@ class DecLaneMode_000:
         # mission mode 변경
         self.check_finish_mode2_flag = False
         self.check_time_finish_flag = rospy.get_time()
+        self.check_time_prev = rospy.get_time()
         # 회피 상태
         self.waypoint_idx   = -1
         self.last_time      = 0.0
@@ -250,8 +251,9 @@ class DecLaneMode_000:
             self.obs_flag     = True
             self.waypoint_idx = -1
             # publish & return
-            self.check_time_finish_flag += 0.0015
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
+            self.check_time_finish_flag += now - self.check_time_prev
+            self.check_time_prev = now
             return False
 
         elif self.is_detect_dynamic_obs_near():
@@ -260,10 +262,11 @@ class DecLaneMode_000:
             self.obs_flag     = True
             self.waypoint_idx = -1
             # [ADD] 1초 정지 유지 예약
-            self.check_time_finish_flag += 0.003
             self.stop_hold_until = max(getattr(self, "stop_hold_until", 0.0), now + 1.0)
             # publish & return
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
+            self.check_time_finish_flag += now - self.check_time_prev
+            self.check_time_prev = now
             return False
 
         if self.is_avoiding_dynamic_obs(avoid_on):
@@ -277,7 +280,7 @@ class DecLaneMode_000:
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
 
-        print(f"self.check_time_finish_flag {self.check_time_finish_flag}")
+        print(f"self.check_time_finish_flag {self.check_time_finish_flag - now}")
         if self.is_setting_changing_mission_mode():
             self.check_finish_mode2_flag = True
             self.check_time_finish_flag = rospy.get_time() + 11.5
@@ -285,6 +288,8 @@ class DecLaneMode_000:
             return True
         # 기본 차선 주행
         self.DecLaneCurvature.decision(SKIP_STOPLINE)
+        self.check_time_prev = now
+        
         return False
         # mode, left_lane, right_lane = self.DecLaneCurvature.pth01_ctrl_decision()
         # self.DecLaneCurvature.pth01_ctrl_move(mode, left_lane, right_lane)
