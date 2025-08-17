@@ -27,7 +27,7 @@ class PerTraffic:
         
     def init_pubSub(self):
         rospy.Subscriber("/GetTrafficLightStatus", GetTrafficLightStatus, self.CB_traffic_raw, queue_size=1)
-        self.pub_is_go_traffic = rospy.Publisher('/is_to_go_traffic', Bool, queue_size=1)
+        self.pub_is_go_traffic = rospy.Publisher('/perception/is_to_go_traffic', Bool, queue_size=1)
     def init_traffic(self):
         self.signal = 0
         self.prev_signal = 0

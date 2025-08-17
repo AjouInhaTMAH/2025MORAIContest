@@ -19,8 +19,6 @@ from drive_perception.camera.feature_extraction import LaneFeatureExtractor
 from drive_perception.camera.sliding_window import SlidingWindow
 from utills import check_timer
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 class PerCamera:
     def __init__(self):
         # ROS 노드 초기화
@@ -76,13 +74,12 @@ class PerCamera:
             yellow_bin_img,white_bin_img = self.CameraPreprocessor.img_binary_yAndw(yellow_filtered_img, white_filtered_img)
 
             self.SlidingWindow.set_img_y(self.img_y)
-            self.stop_line, white_bin_img= self.LaneFeatureExtractor.extract_stop_line(white_bin_img,self.img_y)
+            self.lane_mode = self.LaneFeatureExtractor.estimate_lane_mode(warped_img)
+            self.stop_line, white_bin_img= self.LaneFeatureExtractor.estimate_stop_line(white_bin_img,self.img_y)
             self.yellow_lane_img, yellow_left_lane, yellow_right_lane = self.SlidingWindow.sliding_window_adaptive(yellow_bin_img)
             self.white_lane_img, white_left_lane, white_right_lane = self.SlidingWindow.sliding_window_adaptive(white_bin_img)
-            self.current_lane = self.LaneFeatureExtractor.estimate_current_lane(warped_img)
             
-            # dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane,is_out_rotary]           
-            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.current_lane]           
+            dataset = [self.stop_line, yellow_left_lane, yellow_right_lane,white_left_lane, white_right_lane,self.lane_mode]           
             self.pub_cam_info(dataset)
             
             self.view_cam()

@@ -18,7 +18,7 @@ class LaneFeatureExtractor:
     def init_current_lane(self):
         self.current_lane     = "right"  
 
-    def extract_stop_line(self, white_bin_img, img_y , threshold=240):
+    def estimate_stop_line(self, white_bin_img, img_y , threshold=240):
         # y축 방향으로 sum → 수평선은 y축 기준으로 sum값이 커짐
         self.img_y = img_y
         horizontal_sum = np.sum(white_bin_img, axis=1) // 255  # shape: (height,)
@@ -35,7 +35,7 @@ class LaneFeatureExtractor:
         else:
             return [], white_bin_img
 
-    def estimate_current_lane(self, warped_img):
+    def estimate_lane_mode(self, warped_img):
         img_hsv = cv2.cvtColor(warped_img, cv2.COLOR_BGR2HSV)
 
         yellow_lower = np.array([18, 140, 120]) 
@@ -60,8 +60,6 @@ class LaneFeatureExtractor:
 
         #threshold = 100
         threshold = 9000 # 100 -> 200,, 왼쪽 끝에 노란색이 걸려서 1차선으로 판단하는 경우가 있었음, 
-
-     
         # print(f"self.current_lane {self.current_lane}")
         # print(f"left_yellow_count {left_yellow_count}  right_white_count {right_white_count} ")
         if left_yellow_count > threshold:
@@ -73,7 +71,6 @@ class LaneFeatureExtractor:
             return "right"
         else:
             return self.current_lane  # 변화 없으면 유지
-        
         
     def detect_out_rotary(self,yellow_bin_img):
         img = yellow_bin_img

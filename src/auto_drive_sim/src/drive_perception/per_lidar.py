@@ -32,8 +32,6 @@ class PerLidar:
         self.pub_lidar = rospy.Publisher('/perception/lidar', String, queue_size=1)
     def init_msg(self):
         self.laser_data = None
-    def init_timer(self):
-        self.check_timer = check_timer.CheckTimer("PerLidar")
     def init_ROI(self):
         self.length_x_front = -0.8
         self.length_y_front = 0.2
@@ -57,6 +55,8 @@ class PerLidar:
         # self.length_y_rotary_min = -0.525
         self.length_y_rotary_min = -0.7
         self.length_y_rotary_max = 0.175
+    def init_timer(self):
+        self.check_timer = check_timer.CheckTimer("PerLidar")
         
     def CB_lidar_raw(self, msg):
         self.laser_data = msg
@@ -109,15 +109,14 @@ class PerLidar:
 
         return front_pts, left_pts, right_pts ,front_pts_near, rotary_pts
         # right 구역
-    def decide_obstacle(self,points):
+    def estimate_obstacle(self,points):
         results = []
         for region in points:
             # np.array일 경우 len(region) == 행 개수
             is_obstacle = len(region) >= 5
             results.append(is_obstacle)
         return results
-    
-    def decide_ROI_point_mean(self,pts):
+    def estimate_ROI_point_mean(self,pts):
         # front_pts가 비어있으면 None 리턴
         if pts is None or len(pts) == 0:
             return []
@@ -175,9 +174,9 @@ class PerLidar:
         try:
             points = self.calculate_xy_coordinates() # 좌표계 환산
             front_pts, left_pts, right_pts, front_pts_near, rotary_pts = self.divide_ROI(points)
-            obstacles = self.decide_obstacle((left_pts,front_pts,right_pts,front_pts_near))
-            obstacles.append(self.decide_ROI_point_mean(rotary_pts))
-            # print(f"{self.decide_ROI_point_mean(rotary_pts)}")
+            obstacles = self.estimate_obstacle((left_pts,front_pts,right_pts,front_pts_near))
+            obstacles.append(self.estimate_ROI_point_mean(rotary_pts))
+            # print(f"{self.estimate_ROI_point_mean(rotary_pts)}")
             self.pub_lidar_info(obstacles)
             self.view_obstacle_with_ROI(points)
         except Exception as e:

@@ -26,15 +26,14 @@ class PerCarNavigation:
         self.init_timer()
     def init_pubSub(self):
         rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.CB_amcl_raw, queue_size=1)
-        self.zone_pub = rospy.Publisher('/mission_mode', Int32, queue_size=1)
+        self.zone_pub = rospy.Publisher('/perception/mission_mode', Int32, queue_size=1)
     def init_zone(self):
        # zone 좌표 정의 (map 좌표 기준 -> /amcl_pose를 morai에서 실제로 뽑아옴, )
         self.zones = {
-            1: (-0.02331218035026452, 10.6556),   # mission 2 & 3 영역
+            1: (-0.02331218035026452, 10.6556),   # mission 4 영역
             2: (5.1470, 4.1669),    # mission 5 영역
-            # 2: (4.7866139, 4.34265),    # mission 5 영역
-            3: (8.2325, 1.7338),     # mission 5 영역
-            # 4: (10.1863, -0.9488),     # mission 5 영역
+            3: (8.2325, 1.7338),     # goal 영역
+            # mission 2 & 3 은 생략
         }
         self.zone_threshold = 1.0  # 허용 반경 (meters)
         self.x = 0
