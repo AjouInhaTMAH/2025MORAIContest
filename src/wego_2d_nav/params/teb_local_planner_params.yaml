@@ -53,8 +53,8 @@ TebLocalPlannerROS:
  weight_kinematics_nh: 1000
  weight_kinematics_forward_drive: 1
  weight_kinematics_turning_radius: 1
- weight_optimaltime: 1 
- weight_obstacle: 50 
+ weight_optimaltime: 2 # 1 ->2 **8/17 더 빠른 경로를 찾고자 수정,
+ weight_obstacle: 50 #
  weight_dynamic_obstacle: 10 # not in use yet
  alternative_time_cost: False # not in use yet
 
@@ -63,8 +63,8 @@ TebLocalPlannerROS:
  enable_homotopy_class_planning: True
  enable_multithreading: True
  simple_exploration: False
- max_number_classes: 4
- roadmap_graph_no_samples: 30 # 15 _ 장애물의 개수가 많을 경우, 증가, 
+ max_number_classes: 4 # 4 _> 6 -> 4
+ roadmap_graph_no_samples: 15 # 30 _ 장애물의 개수가 많을 경우, 증가, 
  roadmap_graph_area_width: 5
  h_signature_prescaler: 0.5
  h_signature_threshold: 0.1

@@ -246,7 +246,7 @@ class DecLaneMode_000:
             pass
         if self.count_stopsline == 4 and not self.check_finish_mode2_flag:
             self.check_finish_mode2_flag = True
-            self.check_time_finish_flag = rospy.get_time() + 13
+            self.check_time_finish_flag = rospy.get_time() + 11 # 13 -> 18
         if self.check_finish_mode2_flag and self.check_time_finish_flag < now:
             return True
         # 기본 차선 주행

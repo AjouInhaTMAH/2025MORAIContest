@@ -271,8 +271,10 @@ class DecLaneCurvature:
         else:
             state, left_lane, right_lane = self.ctrl_decision()
             if state == "move_straight":
-                self.CtrlMotorServo.pub_move_motor_servo(1200,0.5)
-                rospy.sleep(3.0)
+                # self.CtrlMotorServo.pub_move_motor_servo(1200,0.5)
+                # rospy.sleep(3.0)
+                self.CtrlMotorServo.pub_move_motor_servo(2400,0.5)
+                rospy.sleep(1.5)
                 return
         if mission_mode == 1:
             self.center_index += 50

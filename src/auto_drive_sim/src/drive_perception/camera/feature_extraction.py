@@ -58,11 +58,15 @@ class LaneFeatureExtractor:
         # cv2.imshow("White Mask", white_mask)
         # cv2.waitKey(1)
 
-        threshold = 100
+        #threshold = 100
+        threshold = 9000 # 100 -> 200,, 왼쪽 끝에 노란색이 걸려서 1차선으로 판단하는 경우가 있었음, 
+
+     
         # print(f"self.current_lane {self.current_lane}")
         # print(f"left_yellow_count {left_yellow_count}  right_white_count {right_white_count} ")
         if left_yellow_count > threshold:
             self.current_lane = "left"
+            print(f" left_yellow_count  {left_yellow_count}")
             return "left"
         elif right_white_count > threshold:
             self.current_lane = "right"
