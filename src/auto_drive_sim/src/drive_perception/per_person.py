@@ -45,8 +45,8 @@ class PerPerson:
         self.frame_w = rospy.get_param("~frame_width", 640)
         self.frame_h = rospy.get_param("~frame_height", 480)
         self.center_margin_ratio = rospy.get_param("~center_margin_ratio", 0.25)  # 중앙폭 20%
-        self.warn_height_ratio = rospy.get_param("~warn_height_ratio", 0.7)      # 15% 이상 감속
-        self.stop_height_ratio = rospy.get_param("~stop_height_ratio", 0.15)      # 20% 이상 정지
+        self.warn_height_ratio = rospy.get_param("~warn_height_ratio", 0.10)      # 15% 이상 감속
+        self.stop_height_ratio = rospy.get_param("~stop_height_ratio", 0.14)      # 20% 이상 정지
         self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)   # s
         self.dynamic_obs_flag = "none"  # 'none' | 'slow_flag' | 'stop_flag'
         self.dynamic_obs_timeout = rospy.get_param("~dynamic_obs_timeout", 0.5)  # [ADD] YOLO 타임아웃
