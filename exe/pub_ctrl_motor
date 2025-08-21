@@ -1,1 +1,0 @@
-rostopic pub /commands/motor/ctrl std_msgs/Float64 "data: 0"

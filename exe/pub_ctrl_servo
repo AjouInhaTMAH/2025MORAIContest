@@ -1,1 +1,0 @@
-rostopic pub /commands/servo/ctrl std_msgs/Float64 "data: -19.5"
