@@ -6,17 +6,25 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 
 ## 🖥️ 시스템 설명
 ### 🔹 소프트웨어 구조도
-<img width="1936" height="1151" alt="Image" src="https://github.com/user-attachments/assets/f0deb214-563d-40c4-bd29-8749927f464a" />
+<img width="1024" height="608" alt="Image" src="https://github.com/user-attachments/assets/f0deb214-563d-40c4-bd29-8749927f464a" />
 
 ---
 
 ### 🔹 시스템 구조도
-<img width="1271" height="705" alt="Image" src="https://github.com/user-attachments/assets/137cf063-5ba2-4eb4-a353-6e3dae0e7c96" />
+<img width="1024" height="567" alt="Image" src="https://github.com/user-attachments/assets/137cf063-5ba2-4eb4-a353-6e3dae0e7c96" />
 
 ---
 
 ### 🔹 파일 구조도
-<img width="1171" height="528" alt="Image" src="https://github.com/user-attachments/assets/256f633c-b9ab-4a74-a4b3-06847d64583c" />
+<img width="1024" height="461" alt="Image" src="https://github.com/user-attachments/assets/256f633c-b9ab-4a74-a4b3-06847d64583c" />
+
+---
+
+### 🔹 zone(구간별 번호)
+
+<p align="center">
+ <img width="748" height="705" alt="image" src="https://github.com/user-attachments/assets/70695e86-f332-4cb3-8d22-3e08f6105f7b" />
+</p>
 
 ---
 
