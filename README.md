@@ -52,7 +52,9 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 - 컴퓨터를 2대인 환경에서 미리 설정을 하고 코드를 짜는게 좋다. 즉 미리미리 환경 구축하고, 대회에서 내가 한 값들을 빠르게 변화를 줄 수 있는 환경 구축이 핵심이었다. 이를 너무 늦게 알아서 아쉽넹
 
 ---
-
+## 기술 스택
+![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![ROS](https://img.shields.io/badge/-ROS-22314E?style=for-the-badge&logo=ROS)
 ## 📜 라이센스
 본 프로젝트는 **MIT License**를 따릅니다.  
 이건 우리가 설정하면 된다. 아마 BSD3 던가가 많아서 그게 나을지도?
@@ -63,12 +65,14 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 - 다른 대회 자료
 - [2023MORAIContest](https://github.com/lovelyoverflow/2023MORAIContest)  
 - [MORAI-Contest](https://github.com/lococaeco/MORAI-Contest?tab=readme-ov-file)
-
+- licenses 폴더를 참고 바랍니다.
 ---
 
 ## 👥 팀원 소개
-- **박재일**: 미션 1 (SLAM & Nav)
-- **이강태**: 미션 2 & 3 (동적, 정적 장애물 피하면서 주행)  
-- **유태현**: 미션 2 & 3 (동적, 정적 장애물 피하면서 주행)
-- **이선우**: 미션 4, 시스템 총괄 및 깃허브 관리 (로터리 주행)
-- **하재민**: 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행)
+| 프로필 | 이름 | 역할 / 담당 |
+|--------|------|--------------|
+| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [박재일](https://github.com/parkjaeil00) | 미션 1 (SLAM & Nav) |
+| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [이강태](https://github.com/kante2) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
+| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [유태현](https://github.com/kevin3183) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
+| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [이선우](https://github.com/malenwater) | 미션 4, 시스템 총괄 및 깃허브 관리 (로터리 주행) |
+| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
