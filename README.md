@@ -26,7 +26,7 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 시스템의 동작은 크게 **인지 → 판단 → 제어** 흐름으로 정리할 수 있습니다.  
 
 - **인지(Perception)**: SLAM의 `amcl_pose` 값과 카메라, 라이다, 신호등 데이터를 활용하여 주행 환경을 인식합니다.  
-- **판단(Decision)**: 인지된 정보를 기반으로 **FSM(유한 상태 기계, Finite State Machine)**을 이용하여 상황에 맞는 상태 전환을 수행합니다. 또한 `amcl_pose`는 FSM이 예기치 못하게 무너질 경우를 대비한 보조 장치로 사용됩니다.  
+- **판단(Decision)**: 인지된 정보를 기반으로 **FSM(유한 상태 기계, Finite State Machine)** 을 이용하여 상황에 맞는 상태 전환을 수행합니다. 또한 `amcl_pose`는 FSM이 예기치 못하게 무너질 경우를 대비한 보조 장치로 사용됩니다.  
 - **제어(Control)**: 차량 제어는 두 가지 방식으로 구현하였습니다. 하나는 차선을 기반으로 주행을 수행하는 방식이고, 다른 하나는 특정 상황에서 일정한 제어 값을 직접 전달하는 방식입니다. 이를 통해 다양한 주행 시나리오에 대응할 수 있도록 설계하였습니다.
 
 ## 실험 영상
@@ -49,15 +49,64 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 ### 🔧 개선 방향
 - SLAM에서 동적을 처리하기 위해서 따로 라이다 값을 수정해서 넘겨주었거나, costmap을 잘 이용했다면 괜찮았을 수도 있다.
 - 미션 1 환경을 미리 구축하고 실험했다면 동적으로 움직이는 물체에 부딛치는 상황을 볼 수 있었고, 이를 방지하도록 속도를 조절할 수 있었을 것이다.
-- 컴퓨터를 2대인 환경에서 미리 설정을 하고 코드를 짜는게 좋다. 즉 미리미리 환경 구축하고, 대회에서 내가 한 값들을 빠르게 변화를 줄 수 있는 환경 구축이 핵심이었다. 이를 너무 늦게 알아서 아쉽넹
+- 컴퓨터를 2대인 환경에서 미리 설정을 하고 코드를 짜는게 좋다. 즉 미리미리 환경 구축하고, 대회에서 내가 한 값들을 빠르게 변화를 줄 수 있는 환경 구축이 핵심이었다.
 
 ---
+
+### Requirements
+```
+rosdep install --from-paths . --ignore-src -r -y
+```
+
+### Installation
+```
+git clone git@github.com:AjouInhaTMAH/2025MORAIContest.git
+catkin_make
+```
+
+### Run
+```
+source ./devel/setup.zsh
+```
+or
+```
+source ./devel/setup.bash
+```
+#### 마지막 모든 패키지 실행법
+```
+roslaunch auto_drive_sim main.launch
+```
+#### SLAM 제외 부분 실행법
+만약 SLAM을 제외하고, amcl 부분을 제외하여 FSM을 사용하고 싶다면 
+먼저 auto_drive_sim 패키지의 dec_main.py의 파일의 
+```
+174 ~ 176 line
+        # self.mission_mode = 0  # 0=기본, 1=왼쪽 차선만, 2=오른쪽 차선만 등
+        # self.kill_slim_mover()
+        # self.start_flag = True
+```
+을 활성화 시켜줍니다.
+그 다음 auto_drive_sim 패키지의 per.launch의 파일의 
+```
+  <node pkg="auto_drive_sim" type="per_nav.py" name="per_car_nav_node" output="screen" />
+```
+부분을 비활성화시켜줍니다.
+
+위 두 부분은 SLAM부분 연동을 끊는 부분과 미션에 해당하는 위치 pub부분을 조절해준 것입니다.
+이후
+```
+roslaunch auto_drive_sim per.launch
+roslaunch auto_drive_sim dec.launch
+```
+로 실행해줍니다.
+
 ## 기술 스택
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 ![ROS](https://img.shields.io/badge/-ROS-22314E?style=for-the-badge&logo=ROS)
+
 ## 📜 라이센스
-본 프로젝트는 **MIT License**를 따릅니다.  
-이건 우리가 설정하면 된다. 아마 BSD3 던가가 많아서 그게 나을지도?
+본 프로젝트는 **BSD 3-Clause License**를 따릅니다.  
+
 ---
 
 ## 📂 참고한 Git
@@ -66,6 +115,7 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 - [2023MORAIContest](https://github.com/lovelyoverflow/2023MORAIContest)  
 - [MORAI-Contest](https://github.com/lococaeco/MORAI-Contest?tab=readme-ov-file)
 - licenses 폴더를 참고 바랍니다.
+
 ---
 
 ## 👥 팀원 소개
