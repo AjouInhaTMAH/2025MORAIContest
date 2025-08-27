@@ -150,4 +150,4 @@ roslaunch auto_drive_sim dec.launch
 |  | [이강태](https://github.com/kante2) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
 |  | [유태현](https://github.com/kevin3183) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
 | <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [이선우](https://github.com/malenwater) | 미션 4, 시스템 총괄 및 깃허브 관리 (로터리 주행) |
-| | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
+| <img src="https://github.com/user-attachments/assets/0519fae2-086a-4404-ac66-eb47228a9f06" width="100" height="200"> | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
