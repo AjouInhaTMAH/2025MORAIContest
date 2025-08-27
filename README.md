@@ -1,23 +1,34 @@
 # VirtualAutoRace2025_System
  2025 8월에 주최한 가상환경 기반 자율주행 경진대회에 대한 git입니다. 
-## 📌 소개
-**목적 및 간략한 설명**  
-저희는 자율주행 시뮬레이션 대회 환경에서 차량의 인지, 판단, 제어를 통합적으로 수행하기 위해 개발된 시스템입니다.  
+## 📌 소개  
+ 저희는 자율주행 시뮬레이션 대회 환경에서 차량의 인지, 판단, 제어를 통합적으로 수행하기 위해 개발된 시스템입니다.  
 ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 → 주행 제어까지 전체 파이프라인을 **FSM(유한 상태 기계, Finite State Machine)** 으로 구현하였습니다.  
 
 ## 🖥️ 시스템 설명
 ### 🔹 소프트웨어 구조도
 <img width="1936" height="1151" alt="Image" src="https://github.com/user-attachments/assets/f0deb214-563d-40c4-bd29-8749927f464a" />
 
+---
+
 ### 🔹 시스템 구조도
 <img width="1271" height="705" alt="Image" src="https://github.com/user-attachments/assets/137cf063-5ba2-4eb4-a353-6e3dae0e7c96" />
+
+---
 
 ### 🔹 파일 구조도
 <img width="1171" height="528" alt="Image" src="https://github.com/user-attachments/assets/256f633c-b9ab-4a74-a4b3-06847d64583c" />
 
+---
+
+### 만든 ROS 패키지 명
+- auto_drive_sim
+- wego
+
+---
+
 ### 📝 시스템에 대한 설명
 
-우리 시스템은 ROS의 통신 방식을 적극 활용하여 자율주행의 핵심 기능들을 모듈화하고 분리하여 설계하였습니다.  
+시스템은 ROS의 통신 방식을 적극 활용하여 자율주행의 핵심 기능들을 모듈화하고 분리하여 설계하였습니다.  
 센서로부터 입력되는 데이터를 **Perception(인지)** 모듈에서 처리하고, 이를 기반으로 **Decision(판단)** 모듈이 주행 전략을 결정합니다. 이 과정에서 두 모듈 간의 데이터 교환은 ROS의 **topic**을 통해 이루어지도록 구축하였습니다.  
 한편, 실제 차량을 제어하는 **Controller(제어)** 모듈의 경우, ROS 통신을 별도로 두면 불필요한 오버헤드가 발생한다고 판단하여, Decision 모듈 내부에서 클래스를 직접 호출하여 활용하는 방식으로 구현하였습니다.  
 
@@ -30,11 +41,15 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 - **제어(Control)**: 차량 제어는 두 가지 방식으로 구현하였습니다. 하나는 차선을 기반으로 주행을 수행하는 방식이고, 다른 하나는 특정 상황에서 일정한 제어 값을 직접 전달하는 방식입니다. 이를 통해 다양한 주행 시나리오에 대응할 수 있도록 설계하였습니다.
 
 ## 실험 영상
-
 ### 전체 실험 영상
-
+- [시뮬레이션 영상](https://youtu.be/uGjRywzh-Iw)
+- [알고리즘 영상](https://youtu.be/tRIODtBzdAg)
 ### 부분 실험 영상
-
+- [미션 1 (SLAM, 정적, 동적 피하며 배달하기)](https://youtu.be/JdML5Lk6EzU)
+- [미션 2 (차선 따라가며 정적 장애물 피하기)](https://youtu.be/Pq0KJhjP2Lc)
+- [미션 3 (차선 따라가며 동적 장애물에 멈추기)](https://youtu.be/JxACHl2vfio)
+- [미션 4 (회전 교차로에 부딪치지 않고 들어가고 나가기)](https://youtu.be/8PETpChfBTI)
+- [미션 5 (신호등에 따라 교차로 지나가기)](https://youtu.be/qY2_BoWOfKk)
 ## ✅ 잘한 점
 - 모듈화된 구조로 유지보수 용이(이벤트 브로커 방식을 모방하였기에 가능한 일)
 - ROS 기반으로 확장성과 재사용성이 높음  
@@ -43,7 +58,7 @@ ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 �
 
 ## ⚠️ 아쉬웠던 부분
 - SLAM에서 동작할 때 동적인 부분을 캐치 못하던것
-- 대회 당일 날, 미션 1 위치를 재현하여 하지 못했던 것
+- 대회 당일 날, 랜덤한 배달 위치로 테스트를 해보지 못했던 것
 - 컴퓨터 1대에서는 속도가 느려지면서 알고리즘이 제대로 동작하지 못하는 현상, 이러한 현상은 가끔 일어나는데 성능이 좋으면 안일어난다. 즉 매번 할때마다 하드코딩의 경우 상황이 달라질 수 있다.
 
 ### 🔧 개선 방향
@@ -100,6 +115,8 @@ roslaunch auto_drive_sim dec.launch
 ```
 로 실행해줍니다.
 
+---
+
 ## 기술 스택
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 ![ROS](https://img.shields.io/badge/-ROS-22314E?style=for-the-badge&logo=ROS)
@@ -111,18 +128,18 @@ roslaunch auto_drive_sim dec.launch
 
 ## 📂 참고한 Git
 - [ROS 공식 GitHub](https://github.com/ros)  
-- 다른 대회 자료
+- 참고한 다른 대회 자료
 - [2023MORAIContest](https://github.com/lovelyoverflow/2023MORAIContest)  
 - [MORAI-Contest](https://github.com/lococaeco/MORAI-Contest?tab=readme-ov-file)
-- licenses 폴더를 참고 바랍니다.
+- 기타 SLAM과 관련된 부분은 licenses 폴더를 참고 바랍니다.
 
 ---
 
 ## 👥 팀원 소개
 | 프로필 | 이름 | 역할 / 담당 |
 |--------|------|--------------|
-| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [박재일](https://github.com/parkjaeil00) | 미션 1 (SLAM & Nav) |
-| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [이강태](https://github.com/kante2) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
-| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [유태현](https://github.com/kevin3183) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
+|  | [박재일](https://github.com/parkjaeil00) | 미션 1 (SLAM & Nav) |
+|  | [이강태](https://github.com/kante2) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
+|  | [유태현](https://github.com/kevin3183) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
 | <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [이선우](https://github.com/malenwater) | 미션 4, 시스템 총괄 및 깃허브 관리 (로터리 주행) |
-| <img src="https://github.com/user-attachments/assets/413060e9-eeeb-4ed7-8270-e89f2c175d99" width="100" height="200"> | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
+| | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
