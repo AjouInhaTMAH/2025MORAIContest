@@ -4,7 +4,7 @@
  저희는 자율주행 시뮬레이션 대회 환경에서 차량의 인지, 판단, 제어를 통합적으로 수행하기 위해 개발된 시스템입니다.  
 ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 → 주행 제어까지 전체 파이프라인을 **FSM(유한 상태 기계, Finite State Machine)** 으로 구현하였습니다.  
 
-또한 만약 이 깃허브를 보고, 깃허브에 올리실거라면, 자신들의 이름 뒤에 VEKMUC 약자(Virtual Environment Kookmin University Contest)을 붙여주면 감사하겠습니다.
+또한 만약 이 깃허브를 보고, 깃허브에 올리실거라면 자신들의 깃이름 뒤에 VEKMUC 약자(Virtual Environment Kookmin University Contest)을 붙여주면 감사하겠습니다.
 
 ## 🖥️ 시스템 설명
 ### 🔹 소프트웨어 구조도
