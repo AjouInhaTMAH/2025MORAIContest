@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="auto_drive_sim" type="dec_main.py" name="dec_main_node" output="screen" />
+</launch>
