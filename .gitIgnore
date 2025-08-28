@@ -1,3 +1,7 @@
 build/
 devel/
 .catkin_workspace
+__pycache__
+*.png
+test_img
+tester
