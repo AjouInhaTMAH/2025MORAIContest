@@ -4,6 +4,8 @@
  저희는 자율주행 시뮬레이션 대회 환경에서 차량의 인지, 판단, 제어를 통합적으로 수행하기 위해 개발된 시스템입니다.  
 ROS 기반으로 구성되었으며, 센서 데이터 처리 → 상황 판단 → 주행 제어까지 전체 파이프라인을 **FSM(유한 상태 기계, Finite State Machine)** 으로 구현하였습니다.  
 
+또한 만약 이 깃허브를 보고, 깃허브에 올리실거라면, 자신들의 이름 뒤에 VEKMUC 약자(Virtual Environment Kookmin University Contest)을 붙여주면 감사하겠습니다.
+
 ## 🖥️ 시스템 설명
 ### 🔹 소프트웨어 구조도
 <img width="1024" height="608" alt="Image" src="https://github.com/user-attachments/assets/f0deb214-563d-40c4-bd29-8749927f464a" />
@@ -151,3 +153,6 @@ roslaunch auto_drive_sim dec.launch
 | <img src="https://github.com/user-attachments/assets/6537b147-f3f2-4a1f-a559-31c73a6f0f1b" width="100" height="200"> | [유태현](https://github.com/kevin3183) | 미션 2 & 3 (동적, 정적 장애물 피하면서 주행) |
 | <img src="https://github.com/user-attachments/assets/8f4fbcba-3d8a-455d-9f30-c338c804e00c" width="100" height="200"> | [이선우](https://github.com/malenwater) | 미션 4, 시스템 총괄 및 깃허브 관리 (로터리 주행) |
 | <img src="https://github.com/user-attachments/assets/0519fae2-086a-4404-ac66-eb47228a9f06" width="100" height="200"> | [하재민](https://github.com/hajaemingood) | 미션 5, 차선 주행 알고리즘 구축 (신호등, 차선 따라 주행) |
+### 기념사진
+
+<img width="1440" height="1081" alt="Image" src="https://github.com/user-attachments/assets/dd8f9f0d-d623-4d1b-a68a-fdeb93e6a6dc" />
