@@ -269,7 +269,7 @@ class DecLaneMode_000:
             self.check_time_prev = now
             return False
 
-        if self.is_avoiding_dynamic_obs(avoid_on):
+        if self.is_avoiding_static_obs(avoid_on):
             steer, speed = avoid_cmd
             self.CtrlMotorServo.pub_move_motor_servo(speed, steer)
             return False
